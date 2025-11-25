@@ -258,28 +258,18 @@
 
   <script>
     const canvas = document.getElementById("renderCanvas");
-
-const engine = new BABYLON.Engine(
-  canvas,
-  true,
-  {
-    preserveDrawingBuffer: true,
-    stencil: true,
-    antialias: true
-  },
-  true // משתמש ב-devicePixelRatio של המסך לרזולוציה חדה יותר
-);
-
-// רזולוציה עוד יותר חדה (אפשר לשחק עם המספר: 0.75, 0.6, 0.5...)
-engine.setHardwareScalingLevel(0.5);
-
+    const engine = new BABYLON.Engine(canvas, true, { 
+      preserveDrawingBuffer: true, 
+      stencil: true,
+      antialias: true 
+    });
 
     // ======= מוזיקת רקע – הגדרה כללית =======
     // שים את הקובץ בתיקייה של הקובץ הזה ותן לו את השם הזה
     // אם השם שונה – תעדכן כאן:
     const bgAudio = new Audio("factory_ambience.mp3");
     bgAudio.loop = true;            // לופ אינסופי
-    bgAudio.volume = 0.45;          // עוצמה נוחה
+    bgAudio.volume = 0.2;          // עוצמה נוחה
     bgAudio.playbackRate = 0.85;    // "הילוך איטי" קל לאווירה
     bgAudio.preload = "auto";
 
@@ -408,7 +398,7 @@ engine.setHardwareScalingLevel(0.5);
       hemi.groundColor = new BABYLON.Color3(0.5, 0.5, 0.55);
 
       const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-0.5, -1, 0.5), scene);
-      sun.intensity = 0.8;
+      sun.intensity = 1.2;
       sun.position = new BABYLON.Vector3(20 * SCALE, 30 * SCALE, -20 * SCALE);
 
       // מצלמה
@@ -1210,49 +1200,33 @@ engine.setHardwareScalingLevel(0.5);
         ease: "power2.inOut"
       }, 1.5);
 
-            const sparks = new BABYLON.ParticleSystem("sparks", 200, scene);
-      sparks.particleTexture = new BABYLON.Texture(
-        "https://www.babylonjs-playground.com/textures/flare.png",
-        scene
-      );
+      const sparks = new BABYLON.ParticleSystem("sparks", 50, scene);
+      sparks.particleTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/flare.png", scene);
       sparks.emitter = weldHead;
       sparks.minEmitBox = new BABYLON.Vector3(-0.1 * SCALE, 0, -0.1 * SCALE);
       sparks.maxEmitBox = new BABYLON.Vector3(0.1 * SCALE, 0, 0.1 * SCALE);
-
-      // צבעים קצת יותר "בוערים"
-      sparks.color1 = new BABYLON.Color4(1, 0.9, 0.5, 1);
-      sparks.color2 = new BABYLON.Color4(1, 0.7, 0.2, 1);
+      sparks.color1 = new BABYLON.Color4(1, 0.8, 0.2, 1);
+      sparks.color2 = new BABYLON.Color4(1, 0.5, 0, 1);
       sparks.colorDead = new BABYLON.Color4(0.5, 0.2, 0, 0);
-
-      // 🔥 ניצוצות גדולים וברורים יותר
-      sparks.minSize = 0.04 * SCALE;
-      sparks.maxSize = 0.12 * SCALE;
-
-      // חיים קצת יותר ארוכים – רואים אותם יותר זמן
-      sparks.minLifeTime = 0.15;
-      sparks.maxLifeTime = 0.45;
-
-      // הרבה יותר חלקיקים לשנייה
-      sparks.emitRate = 140;
-
-      // פחות נפילה – הניצוצות נשארים יותר באוויר
-      sparks.gravity = new BABYLON.Vector3(0, -4 * SCALE, 0);
-
-      // מהירות/עוצמת הירייה של הניצוצות
+      sparks.minSize = 0.02 * SCALE;
+      sparks.maxSize = 0.05 * SCALE;
+      sparks.minLifeTime = 0.1;
+      sparks.maxLifeTime = 0.3;
+      sparks.emitRate = 30;
+      sparks.gravity = new BABYLON.Vector3(0, -9.81 * SCALE, 0);
       sparks.direction1 = new BABYLON.Vector3(-1, 1, -1);
       sparks.direction2 = new BABYLON.Vector3(1, 1, 1);
-      sparks.minEmitPower = 2 * SCALE;
-      sparks.maxEmitPower = 5 * SCALE;
-
+      sparks.minEmitPower = 1 * SCALE;
+      sparks.maxEmitPower = 3 * SCALE;
       sparks.start();
 
       const weldLight = new BABYLON.PointLight("weldLight", position.add(new BABYLON.Vector3(1.2 * SCALE, 3 * SCALE, 0)), scene);
       weldLight.diffuse = new BABYLON.Color3(0.6, 0.8, 1);
       weldLight.intensity = 8;
-      weldLight.range = 4 * SCALE;
+      weldLight.range = 10 * SCALE;
 
       gsap.to(weldLight, {
-        intensity: 8,
+        intensity: 15,
         duration: 0.1,
         repeat: -1,
         yoyo: true,
