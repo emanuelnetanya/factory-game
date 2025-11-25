@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>משחק תרמיל הגב PRO – מובייל</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <!-- BabylonJS + GUI -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+  <!-- פונטים ייחודיים מ-Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #2196F3;
+      --primary-dark: #1976D2;
+      --secondary: #FF6B35;
+      --success: #00C853;
+      --warning: #FFB300;
+      --danger: #F44336;
+      --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --card-bg: rgba(255, 255, 255, 0.98);
+      --shadow-strong: 0 10px 40px rgba(0,0,0,0.25);
+      --shadow-medium: 0 4px 16px rgba(0,0,0,0.15);
+      --shadow-soft: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Assistant", "Rubik", sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      position: relative;
+    }
+
+    /* רקע מונפש עם דפוס */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle at 20% 80%, rgba(255,255,255,0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 50%);
+      pointer-events: none;
+      animation: bgPulse 8s ease-in-out infinite;
+    }
+
+    @keyframes bgPulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.6; }
+    }
+
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      outline: none;
+    }
+
+    /* HUD תחתון משופר */
+    #hud {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 8px 12px;
+      direction: rtl;
+      z-index: 1000;
+      border-top: 3px solid var(--primary);
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #263238;
+      padding: 6px 10px;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      border-radius: 12px;
+      box-shadow: var(--shadow-soft);
+      transition: all 0.3s ease;
+    }
+
+    .stat-item:active {
+      transform: scale(0.98);
+    }
+
+    .stat-icon {
+      font-size: 18px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+
+    .stat-value {
+      font-family: "Rubik", sans-serif;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+
+    #message {
+      grid-column: 1 / -1;
+      padding: 10px 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1.4;
+      box-shadow: var(--shadow-medium);
+      animation: slideUp 0.5s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    #checkBtn {
+      grid-column: 1 / -1;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--success) 0%, #00897B 100%);
+      color: white;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      font-family: "Rubik", sans-serif;
+      box-shadow: var(--shadow-medium);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    #checkBtn::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    #checkBtn:active::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    #checkBtn:active {
+      transform: scale(0.96);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    /* כפתור העזרה */
+    #helpBtn {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: var(--shadow-strong);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(33, 150, 243, 0);
+      }
+    }
+
+    #helpBtn:active {
+      transform: scale(0.9);
+    }
+
+    /* פאנל מידע */
+    #infoPanel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(10px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .info-content {
+      background: white;
+      border-radius: 24px;
+      padding: 24px;
+      max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-strong);
+      animation: slideIn 0.4s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .info-content h2 {
+      font-family: "Rubik", sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .info-content p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #424242;
+      margin-bottom: 12px;
+    }
+
+    .info-content strong {
+      color: var(--primary-dark);
+      font-weight: 700;
+    }
+
+    #closeInfo {
+      width: 100%;
+      padding: 14px;
+      margin-top: 16px;
+      border: none;
+      border-radius: 14px;
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      font-family: "Rubik", sans-serif;
+      transition: all 0.3s ease;
+    }
+
+    #closeInfo:active {
+      transform: scale(0.97);
+      background: var(--primary-dark);
+    }
+
+    /* התאמה למסכים קטנים מאוד */
+    @media (max-height: 600px) {
+      #hud {
+        padding: 8px 12px;
+        gap: 6px;
+      }
+      
+      .stat-item {
+        font-size: 11px;
+        padding: 4px 8px;
+      }
+      
+      #message {
+        font-size: 11px;
+        padding: 8px 10px;
+      }
+      
+      #checkBtn {
+        padding: 10px 20px;
+        font-size: 13px;
+      }
+
+      #helpBtn {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+        top: 12px;
+        left: 12px;
+      }
+    }
+
+    /* אנימציות למוצרים נבחרים */
+    @keyframes selectedGlow {
+      0%, 100% {
+        filter: drop-shadow(0 0 10px rgba(33, 150, 243, 0.5));
+      }
+      50% {
+        filter: drop-shadow(0 0 20px rgba(33, 150, 243, 0.8));
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <button id="helpBtn">❓</button>
+
+  <div id="hud">
+    <div class="stat-item">
+      <span class="stat-icon">📊</span>
+      <span>קיבולת: <span class="stat-value" id="capacity">10</span></span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-icon">⚖️</span>
+      <span>משקל: <span class="stat-value" id="weight">0</span></span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-icon">💎</span>
+      <span>ערך: <span class="stat-value" id="value">0</span></span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-icon">🎯</span>
+      <span>יעד: <span class="stat-value" id="target">?</span></span>
+    </div>
+    <div id="message">לחץ על מוצר כדי להוסיף לארגז ✨</div>
+    <button id="checkBtn">✅ בדוק פתרון</button>
+  </div>
+
+  <div id="infoPanel">
+    <div class="info-content">
+      <h2>🎒 איך לשחק?</h2>
+      <p><strong>המטרה:</strong> למלא את ארגז הציוד במוצרים בעלי הערך הכולל הגבוה ביותר, מבלי לחרוג מהמשקל המקסימלי.</p>
+      <p><strong>איך לשחק:</strong></p>
+      <p>1️⃣ לחץ על מוצר כדי להכניס אותו לארגז</p>
+      <p>2️⃣ לחץ שוב כדי להוציא אותו</p>
+      <p>3️⃣ עקוב אחר המשקל והערך בפס התחתון</p>
+      <p>4️⃣ כשאתה חושב שמצאת את הפתרון הטוב ביותר - לחץ על "בדוק פתרון"</p>
+      <p><strong>טיפ:</strong> זה לא תמיד כדאי לקחת את הפריט היקר ביותר! נסה קומבינציות שונות 🧩</p>
+      <button id="closeInfo">הבנתי, בוא נתחיל! 🚀</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    // רזולוציה מותאמת
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    engine.setHardwareScalingLevel(1 / pixelRatio);
+
+    const IS_MOBILE = window.innerWidth <= 768;
+    const IS_SMALL = window.innerHeight < 600;
+    
+    // סקייל דינמי לפי גודל מסך
+    const SCALE = IS_SMALL ? 0.35 : IS_MOBILE ? 0.42 : 0.5;
+
+    // ====== נתוני בעיית תרמיל הגב ======
+    const CAPACITY = 10;
+    const ITEMS = [
+      { name: "מנוע סרוו", icon: "🔩", weight: 4, value: 9, color: new BABYLON.Color3(0.98, 0.54, 0.20), type: "servo" },
+      { name: "חיישן לייזר", icon: "🔦", weight: 2, value: 6, color: new BABYLON.Color3(0.11, 0.80, 0.98), type: "laser" },
+      { name: "בקר PLC", icon: "📦", weight: 3, value: 7, color: new BABYLON.Color3(0.63, 0.40, 0.98), type: "plc" },
+      { name: "מודול זרוע", icon: "🤖", weight: 5, value: 10, color: new BABYLON.Color3(1.00, 0.84, 0.15), type: "robotArm" },
+      { name: "מצלמת QC", icon: "📷", weight: 1, value: 3, color: new BABYLON.Color3(0.30, 0.88, 0.53), type: "camera" },
+      { name: "מודול RFID", icon: "📡", weight: 2, value: 5, color: new BABYLON.Color3(0.36, 0.69, 1.00), type: "rfid" }
+    ];
+
+    let scene, camera, ui;
+    let backpackBase;
+    let itemRoots = [];
+    let backpackSlots = [];
+    let currentWeight = 0;
+    let currentValue = 0;
+    let bestPossibleValue = 0;
+
+    // ===== סאונד =====
+    const moveAudio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjKJ0fPTgjMGHm7A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Cze/TgjMHHm3A7+OYUQ0PVq3o7q1aGAg+md/wxWwgBi6Bzf7TgjMHHm2/7+OZUQ0OVq3o7q1bGAg+md/wxWwfBi+Cze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVqzo7q1aGAg+meHyxW4fBi+Cze/TgjQHHm3A7+OZUQ0OVqzo7q1bGAg+meHyxW0fBjCBze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+Bze/TgjMHHm3A7+OZUQ0PVq3o7q1aGAg+meHyxW0fBi+B");
+
+    function playMoveSfx() {
+      try {
+        moveAudio.currentTime = 0;
+        moveAudio.volume = 0.3;
+        moveAudio.play().catch(e => console.log("Audio play blocked"));
+      } catch (e) {}
+    }
+
+    // HUD Elements
+    const capacityEl = document.getElementById("capacity");
+    const weightEl = document.getElementById("weight");
+    const valueEl = document.getElementById("value");
+    const targetEl = document.getElementById("target");
+    const msgEl = document.getElementById("message");
+    const checkBtn = document.getElementById("checkBtn");
+    const helpBtn = document.getElementById("helpBtn");
+    const infoPanel = document.getElementById("infoPanel");
+    const closeInfo = document.getElementById("closeInfo");
+
+    // Help panel handlers
+    helpBtn.addEventListener("click", () => {
+      infoPanel.style.display = "flex";
+    });
+
+    closeInfo.addEventListener("click", () => {
+      infoPanel.style.display = "none";
+    });
+
+    infoPanel.addEventListener("click", (e) => {
+      if (e.target === infoPanel) {
+        infoPanel.style.display = "none";
+      }
+    });
+
+    capacityEl.textContent = CAPACITY;
+
+    // ===== חישוב הערך האופטימלי =====
+    function computeOptimalValue() {
+      const n = ITEMS.length;
+      let best = 0;
+      for (let mask = 0; mask < (1 << n); mask++) {
+        let w = 0, v = 0;
+        for (let i = 0; i < n; i++) {
+          if (mask & (1 << i)) {
+            w += ITEMS[i].weight;
+            v += ITEMS[i].value;
+          }
+        }
+        if (w <= CAPACITY && v > best) best = v;
+      }
+      return best;
+    }
+
+    // ===== יצירת סצנה =====
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0, 0, 0, 0); // שקוף כדי לראות את הרקע
+
+      // תאורה משופרת
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 1.1;
+      hemi.groundColor = new BABYLON.Color3(0.3, 0.4, 0.6);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.5, -1, -0.3), scene);
+      dir.intensity = 0.8;
+
+      // Point lights לעומק
+      const light1 = new BABYLON.PointLight("light1", new BABYLON.Vector3(10 * SCALE, 5 * SCALE, 5 * SCALE), scene);
+      light1.intensity = 0.3;
+      light1.diffuse = new BABYLON.Color3(0.4, 0.6, 1);
+
+      const light2 = new BABYLON.PointLight("light2", new BABYLON.Vector3(-10 * SCALE, 5 * SCALE, -5 * SCALE), scene);
+      light2.intensity = 0.3;
+      light2.diffuse = new BABYLON.Color3(1, 0.6, 0.4);
+
+      // ===== מצלמה מותאמת למובייל =====
+      const baseRadius = IS_SMALL ? 28 * SCALE : IS_MOBILE ? 30 * SCALE : 34 * SCALE;
+      
+      camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(90),
+        BABYLON.Tools.ToRadians(72),
+        baseRadius,
+        new BABYLON.Vector3(0, 2.5 * SCALE, 0),
+        scene
+      );
+
+      camera.attachControl(canvas, false);
+      camera.inputs.clear();
+      camera.lowerRadiusLimit = baseRadius;
+      camera.upperRadiusLimit = baseRadius;
+      camera.lowerBetaLimit = camera.beta;
+      camera.upperBetaLimit = camera.beta;
+      camera.panningSensibility = 0;
+
+      // סביבה
+      createEnvironment(scene);
+
+      // GUI
+      ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+      // תרמיל
+      createBackpack(scene);
+
+      // מוצרים
+      createItems(scene);
+
+      // בחירה
+      setupPicking(scene);
+
+      return scene;
+    }
+
+    function createEnvironment(scene) {
+      // רצפה מעוצבת
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", {
+        width: 40 * SCALE,
+        height: 30 * SCALE
+      }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.94, 0.96, 0.99);
+      gMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+      ground.material = gMat;
+      ground.isPickable = false;
+
+      // פסי זוהר מעוצבים
+      const stripeColors = [
+        new BABYLON.Color3(0.4, 0.7, 1),
+        new BABYLON.Color3(0.5, 0.6, 1),
+        new BABYLON.Color3(0.3, 0.8, 0.95)
+      ];
+
+      for (let i = -2; i <= 2; i++) {
+        const stripe = BABYLON.MeshBuilder.CreateBox("stripe" + i, {
+          width: 40 * SCALE,
+          height: 0.02 * SCALE,
+          depth: 0.15 * SCALE
+        }, scene);
+        stripe.position = new BABYLON.Vector3(0, 0.01 * SCALE, i * 3 * SCALE);
+        const sMat = new BABYLON.StandardMaterial("sMat" + i, scene);
+        sMat.emissiveColor = stripeColors[Math.abs(i) % 3];
+        sMat.alpha = 0.7;
+        stripe.material = sMat;
+        stripe.isPickable = false;
+      }
+
+      // קיר אחורי מעוצב
+      const wall = BABYLON.MeshBuilder.CreateBox("wall", {
+        width: 40 * SCALE,
+        height: 13 * SCALE,
+        depth: 0.5 * SCALE
+      }, scene);
+      wall.position = new BABYLON.Vector3(0, 6.5 * SCALE, -9 * SCALE);
+      const wMat = new BABYLON.StandardMaterial("wMat", scene);
+      wMat.diffuseColor = new BABYLON.Color3(0.88, 0.91, 0.97);
+      wMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.95);
+      wall.material = wMat;
+      wall.isPickable = false;
+
+      // רצועת LED מרהיבה
+      const ledStrip = BABYLON.MeshBuilder.CreateBox("ledStrip", {
+        width: 36 * SCALE,
+        height: 0.4 * SCALE,
+        depth: 0.15 * SCALE
+      }, scene);
+      ledStrip.position = new BABYLON.Vector3(0, 10 * SCALE, -8.7 * SCALE);
+      const ledMat = new BABYLON.StandardMaterial("ledMat", scene);
+      ledMat.emissiveColor = new BABYLON.Color3(0.3, 0.85, 1);
+      ledMat.diffuseColor = new BABYLON.Color3(0.5, 0.9, 1);
+      ledStrip.material = ledMat;
+      ledStrip.isPickable = false;
+
+      // שולחן עבודה מעוצב
+      const tableTop = BABYLON.MeshBuilder.CreateBox("tableTop", {
+        width: 26 * SCALE,
+        depth: 13 * SCALE,
+        height: 0.6 * SCALE
+      }, scene);
+      tableTop.position.y = 2.5 * SCALE;
+      const tMat = new BABYLON.StandardMaterial("tMat", scene);
+      tMat.diffuseColor = new BABYLON.Color3(0.9, 0.92, 0.97);
+      tMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.95);
+      tableTop.material = tMat;
+      tableTop.isPickable = false;
+
+      // רגלי שולחן
+      const legPositions = [
+        [-1, -1], [1, -1], [-1, 1], [1, 1]
+      ];
+
+      legPositions.forEach(([sx, sz]) => {
+        const leg = BABYLON.MeshBuilder.CreateBox("leg", {
+          width: 0.8 * SCALE,
+          depth: 0.8 * SCALE,
+          height: 2.5 * SCALE
+        }, scene);
+        leg.position = new BABYLON.Vector3(
+          sx * 12 * SCALE,
+          1.25 * SCALE,
+          sz * 6 * SCALE
+        );
+        leg.material = tMat;
+        leg.isPickable = false;
+      });
+
+      // אפקט צל מתחת לשולחן
+      const shadow = BABYLON.MeshBuilder.CreateGround("shadow", {
+        width: 26 * SCALE,
+        height: 13 * SCALE
+      }, scene);
+      shadow.position.y = 0.02 * SCALE;
+      const shadowMat = new BABYLON.StandardMaterial("shadowMat", scene);
+      shadowMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+      shadowMat.alpha = 0.1;
+      shadow.material = shadowMat;
+      shadow.isPickable = false;
+    }
+
+    // ===== תרמיל מעוצב =====
+    function createBackpack(scene) {
+      // בסיס
+      backpackBase = BABYLON.MeshBuilder.CreateBox("backpackBase", {
+        width: 8 * SCALE,
+        height: 0.6 * SCALE,
+        depth: 6 * SCALE
+      }, scene);
+      backpackBase.position = new BABYLON.Vector3(10 * SCALE, 2.8 * SCALE, 0);
+      const baseMat = new BABYLON.StandardMaterial("baseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.75, 0.82, 0.95);
+      baseMat.specularColor = new BABYLON.Color3(0.95, 0.95, 1);
+      backpackBase.material = baseMat;
+      backpackBase.isPickable = false;
+
+      // גוף הארגז - יותר גדול ובולט
+      const body = BABYLON.MeshBuilder.CreateCylinder("packBody", {
+        diameter: 7.5 * SCALE,
+        height: 3.5 * SCALE,
+        tessellation: 32
+      }, scene);
+      body.scaling.z = 0.72;
+      body.position = backpackBase.position.add(new BABYLON.Vector3(0, 2 * SCALE, 0.1 * SCALE));
+      const bodyMat = new BABYLON.StandardMaterial("bodyMat", scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(0.4, 0.58, 0.95);
+      bodyMat.alpha = 0.6;
+      bodyMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+      body.material = bodyMat;
+      body.isPickable = false;
+
+      // מכסה מעוצב
+      const lid = BABYLON.MeshBuilder.CreateCylinder("packLid", {
+        diameter: 7.5 * SCALE,
+        height: 0.5 * SCALE,
+        tessellation: 32
+      }, scene);
+      lid.scaling.z = 0.72;
+      lid.position = backpackBase.position.add(new BABYLON.Vector3(0, 3.6 * SCALE, 0.2 * SCALE));
+      const lidMat = new BABYLON.StandardMaterial("lidMat", scene);
+      lidMat.diffuseColor = new BABYLON.Color3(0.3, 0.48, 0.9);
+      lidMat.specularColor = new BABYLON.Color3(0.85, 0.85, 0.95);
+      lid.material = lidMat;
+      lid.isPickable = false;
+
+      // ידית מעוצבת
+      const handle = BABYLON.MeshBuilder.CreateTorus("handle", {
+        diameter: 3.2 * SCALE,
+        thickness: 0.35 * SCALE,
+        tessellation: 32
+      }, scene);
+      handle.position = backpackBase.position.add(new BABYLON.Vector3(0, 4.3 * SCALE, 2.2 * SCALE));
+      const handleMat = new BABYLON.StandardMaterial("handleMat", scene);
+      handleMat.diffuseColor = new BABYLON.Color3(0.98, 0.98, 1);
+      handleMat.specularColor = new BABYLON.Color3(1, 1, 1);
+      handle.material = handleMat;
+      handle.isPickable = false;
+
+      // סלוטים למוצרים
+      const center = backpackBase.position.add(new BABYLON.Vector3(0, 0.7 * SCALE, 0));
+      const dx = 2.4 * SCALE;
+      const dz = 1.8 * SCALE;
+
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 3; col++) {
+          const pos = new BABYLON.Vector3(
+            center.x + (col - 1) * dx,
+            center.y + row * 1.4 * SCALE,
+            center.z + (row === 0 ? 0.7 * SCALE : -0.7 * SCALE)
+          );
+          backpackSlots.push(pos);
+
+          // ויזואליזציה של הסלוט
+          const slot = BABYLON.MeshBuilder.CreateBox("slotViz", {
+            width: 2.1 * SCALE,
+            height: 0.04 * SCALE,
+            depth: 1.5 * SCALE
+          }, scene);
+          slot.position = new BABYLON.Vector3(pos.x, backpackBase.position.y + 0.02 * SCALE, pos.z);
+          const sMat = new BABYLON.StandardMaterial("slotMat", scene);
+          sMat.diffuseColor = new BABYLON.Color3(0.6, 0.8, 1);
+          sMat.alpha = 0.5;
+          sMat.emissiveColor = new BABYLON.Color3(0.2, 0.4, 0.6);
+          slot.material = sMat;
+          slot.isPickable = false;
+        }
+      }
+
+      // כיתוב GUI מעוצב
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.width = IS_SMALL ? "120px" : "150px";
+      rect.height = IS_SMALL ? "32px" : "38px";
+      rect.thickness = 0;
+      rect.cornerRadius = 19;
+      rect.background = "linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,245,255,0.98) 100%)";
+      rect.shadowBlur = 10;
+      rect.shadowColor = "rgba(0,0,0,0.2)";
+      ui.addControl(rect);
+      rect.linkWithMesh(backpackBase);
+      rect.linkOffsetY = IS_SMALL ? -40 : -50;
+
+      const txt = new BABYLON.GUI.TextBlock();
+      txt.text = "🎒 ארגז ציוד";
+      txt.color = "#1565C0";
+      txt.fontSize = IS_SMALL ? 12 : 15;
+      txt.fontWeight = "700";
+      txt.fontFamily = "Rubik, sans-serif";
+      rect.addControl(txt);
+    }
+
+    // ===== יצירת המוצרים עם מיקום חכם =====
+    function createItems(scene) {
+      itemRoots = [];
+      
+      // מיקומים מותאמים למובייל - פרוסים יותר
+      const positions = [
+        [-12 * SCALE, 2.9 * SCALE, -3 * SCALE],   // שורה עליונה שמאל
+        [-7.5 * SCALE, 2.9 * SCALE, -3 * SCALE],  // שורה עליונה אמצע
+        [-3 * SCALE, 2.9 * SCALE, -3 * SCALE],    // שורה עליונה ימין
+        [-12 * SCALE, 2.9 * SCALE, 3 * SCALE],    // שורה תחתונה שמאל
+        [-7.5 * SCALE, 2.9 * SCALE, 3 * SCALE],   // שורה תחתונה אמצע
+        [-3 * SCALE, 2.9 * SCALE, 3 * SCALE]      // שורה תחתונה ימין
+      ];
+
+      ITEMS.forEach((item, i) => {
+        const root = new BABYLON.TransformNode("itemRoot_" + i, scene);
+        root.position = new BABYLON.Vector3(...positions[i]);
+
+        buildItemModel(scene, root, item);
+
+        root.metadata = {
+          type: "itemRoot",
+          index: i,
+          selected: false,
+          basePosition: root.position.clone(),
+          slotIndex: null
+        };
+
+        // תווית מעוצבת
+        const labelSize = IS_SMALL ? 
+          { width: "130px", height: "50px", fontSize: 10 } :
+          { width: "160px", height: "58px", fontSize: 12 };
+
+        const rect = new BABYLON.GUI.Rectangle();
+        rect.width = labelSize.width;
+        rect.height = labelSize.height;
+        rect.thickness = 2;
+        rect.cornerRadius = 12;
+        rect.color = item.color.toHexString();
+        rect.background = "rgba(255, 255, 255, 0.96)";
+        rect.alpha = 0.98;
+        rect.isPointerBlocker = false;
+        rect.shadowBlur = 8;
+        rect.shadowColor = "rgba(0,0,0,0.15)";
+        ui.addControl(rect);
+        rect.linkWithMesh(root);
+        
+        // מיקום תווית חכם - תמיד מעל
+        rect.linkOffsetY = IS_SMALL ? -65 : -75;
+
+        const lbl = new BABYLON.GUI.TextBlock();
+        lbl.text = `${item.icon} ${item.name}\n⚖️ ${item.weight}  💎 ${item.value}`;
+        lbl.fontFamily = "Assistant, sans-serif";
+        lbl.color = "#1A237E";
+        lbl.fontSize = labelSize.fontSize;
+        lbl.fontWeight = "600";
+        lbl.textWrapping = true;
+        lbl.lineSpacing = "3px";
+        rect.addControl(lbl);
+
+        itemRoots.push(root);
+      });
+    }
+
+    // ===== בניית המודלים (קוד מקוצר) =====
+    function buildItemModel(scene, root, item) {
+      const col = item.color;
+      const scale = SCALE;
+
+      // כל מודל מקבל אור נוסף
+      const itemLight = new BABYLON.PointLight("itemLight_" + item.type, root.position, scene);
+      itemLight.intensity = 0.5;
+      itemLight.diffuse = col;
+      itemLight.parent = root;
+
+      if (item.type === "servo") {
+        const base = BABYLON.MeshBuilder.CreateBox("servoBase", {
+          width: 1.8 * scale, height: 0.6 * scale, depth: 1.4 * scale
+        }, scene);
+        base.parent = root;
+        base.position.y = 0.3 * scale;
+        const baseMat = new BABYLON.StandardMaterial("servoBaseMat", scene);
+        baseMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.18);
+        baseMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+        base.material = baseMat;
+
+        const body = BABYLON.MeshBuilder.CreateBox("servoBody", {
+          width: 1.5 * scale, height: 0.9 * scale, depth: 1.1 * scale
+        }, scene);
+        body.parent = root;
+        body.position.y = 0.9 * scale;
+        const bodyMat = new BABYLON.StandardMaterial("servoBodyMat", scene);
+        bodyMat.diffuseColor = col;
+        bodyMat.specularColor = new BABYLON.Color3(1, 1, 1);
+        body.material = bodyMat;
+
+        const shaft = BABYLON.MeshBuilder.CreateCylinder("servoShaft", {
+          diameter: 0.35 * scale, height: 0.4 * scale
+        }, scene);
+        shaft.parent = root;
+        shaft.position = new BABYLON.Vector3(0, 1.4 * scale, 0);
+        const shaftMat = new BABYLON.StandardMaterial("shaftMat", scene);
+        shaftMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 1);
+        shaft.material = shaftMat;
+
+        const horn = BABYLON.MeshBuilder.CreateBox("servoHorn", {
+          width: 1.6 * scale, height: 0.12 * scale, depth: 0.35 * scale
+        }, scene);
+        horn.parent = root;
+        horn.position = new BABYLON.Vector3(0, 1.55 * scale, 0);
+        horn.material = shaftMat;
+
+      } else if (item.type === "laser") {
+        const body = BABYLON.MeshBuilder.CreateBox("laserBody", {
+          width: 1.6 * scale, height: 0.7 * scale, depth: 1.1 * scale
+        }, scene);
+        body.parent = root;
+        const bodyMat = new BABYLON.StandardMaterial("laserBodyMat", scene);
+        bodyMat.diffuseColor = col;
+        bodyMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+        body.material = bodyMat;
+
+        const lens = BABYLON.MeshBuilder.CreateCylinder("laserLens", {
+          diameter: 0.6 * scale, height: 0.35 * scale, tessellation: 24
+        }, scene);
+        lens.parent = root;
+        lens.position.z = 0.7 * scale;
+        const lensMat = new BABYLON.StandardMaterial("lensMat", scene);
+        lensMat.diffuseColor = new BABYLON.Color3(0.1, 0.6, 1);
+        lensMat.emissiveColor = new BABYLON.Color3(0.2, 0.7, 1);
+        lens.material = lensMat;
+
+        const bracket = BABYLON.MeshBuilder.CreateBox("laserBracket", {
+          width: 0.8 * scale, height: 0.2 * scale, depth: 1.2 * scale
+        }, scene);
+        bracket.parent = root;
+        bracket.position.y = -0.45 * scale;
+        const brMat = new BABYLON.StandardMaterial("brMat", scene);
+        brMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+        bracket.material = brMat;
+
+      } else if (item.type === "plc") {
+        const rack = BABYLON.MeshBuilder.CreateBox("plcRack", {
+          width: 2.4 * scale, height: 1.4 * scale, depth: 0.9 * scale
+        }, scene);
+        rack.parent = root;
+        rack.position.y = 0.8 * scale;
+        const rMat = new BABYLON.StandardMaterial("rackMat", scene);
+        rMat.diffuseColor = new BABYLON.Color3(0.18, 0.19, 0.22);
+        rack.material = rMat;
+
+        for (let i = 0; i < 4; i++) {
+          const mod = BABYLON.MeshBuilder.CreateBox("plcMod" + i, {
+            width: 0.5 * scale, height: 1.1 * scale, depth: 0.7 * scale
+          }, scene);
+          mod.parent = root;
+          mod.position = new BABYLON.Vector3(-0.75 * scale + i * 0.5 * scale, 0.8 * scale, 0);
+          const mMat = new BABYLON.StandardMaterial("plcModMat" + i, scene);
+          mMat.diffuseColor = new BABYLON.Color3(0.4 + 0.08 * i, 0.5, 0.7 + 0.05 * i);
+          mod.material = mMat;
+        }
+
+      } else if (item.type === "robotArm") {
+        const base = BABYLON.MeshBuilder.CreateCylinder("armBase", {
+          diameter: 1.3 * scale, height: 0.4 * scale
+        }, scene);
+        base.parent = root;
+        base.position.y = 0.2 * scale;
+        const baseMat = new BABYLON.StandardMaterial("armBaseMat", scene);
+        baseMat.diffuseColor = new BABYLON.Color3(0.25, 0.25, 0.3);
+        base.material = baseMat;
+
+        const joint1 = BABYLON.MeshBuilder.CreateCylinder("joint1", {
+          diameter: 0.9 * scale, height: 0.6 * scale
+        }, scene);
+        joint1.parent = root;
+        joint1.position.y = 0.7 * scale;
+        const jMat = new BABYLON.StandardMaterial("jMat", scene);
+        jMat.diffuseColor = col;
+        jMat.specularColor = new BABYLON.Color3(1, 1, 1);
+        joint1.material = jMat;
+
+        const arm1 = BABYLON.MeshBuilder.CreateBox("arm1", {
+          width: 0.4 * scale, height: 1.6 * scale, depth: 0.4 * scale
+        }, scene);
+        arm1.parent = root;
+        arm1.position = new BABYLON.Vector3(0, 1.6 * scale, 0.2 * scale);
+        arm1.rotation.z = -0.3;
+        arm1.material = jMat;
+
+        const joint2 = BABYLON.MeshBuilder.CreateSphere("joint2", {
+          diameter: 0.6 * scale
+        }, scene);
+        joint2.parent = root;
+        joint2.position = new BABYLON.Vector3(0.3 * scale, 2.2 * scale, 0.4 * scale);
+        joint2.material = jMat;
+
+        const arm2 = BABYLON.MeshBuilder.CreateBox("arm2", {
+          width: 0.35 * scale, height: 1.2 * scale, depth: 0.35 * scale
+        }, scene);
+        arm2.parent = root;
+        arm2.position = new BABYLON.Vector3(0.4 * scale, 2.7 * scale, 0.7 * scale);
+        arm2.rotation.z = 0.4;
+        arm2.material = jMat;
+
+        const gripper = BABYLON.MeshBuilder.CreateBox("gripper", {
+          width: 0.7 * scale, height: 0.2 * scale, depth: 0.5 * scale
+        }, scene);
+        gripper.parent = root;
+        gripper.position = new BABYLON.Vector3(0.6 * scale, 3.3 * scale, 0.9 * scale);
+        const gMat = new BABYLON.StandardMaterial("gMat", scene);
+        gMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.2);
+        gripper.material = gMat;
+
+      } else if (item.type === "camera") {
+        const body = BABYLON.MeshBuilder.CreateBox("camBody", {
+          width: 1.6 * scale, height: 0.9 * scale, depth: 0.9 * scale
+        }, scene);
+        body.parent = root;
+        const bMat = new BABYLON.StandardMaterial("camMat", scene);
+        bMat.diffuseColor = new BABYLON.Color3(0.2, 0.22, 0.26);
+        body.material = bMat;
+
+        const lens = BABYLON.MeshBuilder.CreateCylinder("camLens", {
+          diameter: 0.7 * scale, height: 0.6 * scale, tessellation: 24
+        }, scene);
+        lens.parent = root;
+        lens.position.z = 0.7 * scale;
+        const lMat = new BABYLON.StandardMaterial("camLensMat", scene);
+        lMat.diffuseColor = new BABYLON.Color3(0.1, 0.6, 1);
+        lMat.emissiveColor = new BABYLON.Color3(0.2, 0.7, 1);
+        lens.material = lMat;
+
+        const mount = BABYLON.MeshBuilder.CreateBox("camMount", {
+          width: 0.8 * scale, height: 0.2 * scale, depth: 1.2 * scale
+        }, scene);
+        mount.parent = root;
+        mount.position.y = -0.5 * scale;
+        const mMat = new BABYLON.StandardMaterial("camMountMat", scene);
+        mMat.diffuseColor = new BABYLON.Color3(0.25, 0.25, 0.3);
+        mount.material = mMat;
+
+      } else if (item.type === "rfid") {
+        const body = BABYLON.MeshBuilder.CreateBox("rfidBody", {
+          width: 1.9 * scale, height: 0.4 * scale, depth: 1.5 * scale
+        }, scene);
+        body.parent = root;
+        const bMat = new BABYLON.StandardMaterial("rfidMat", scene);
+        bMat.diffuseColor = col;
+        bMat.specularColor = new BABYLON.Color3(0.95, 0.95, 1);
+        body.material = bMat;
+
+        const frame = BABYLON.MeshBuilder.CreateTorus("rfidFrame", {
+          diameter: 1.3 * scale, thickness: 0.08 * scale, tessellation: 32
+        }, scene);
+        frame.parent = root;
+        frame.rotation.x = Math.PI / 2;
+        frame.position.y = 0.25 * scale;
+        const fMat = new BABYLON.StandardMaterial("rfidFrameMat", scene);
+        fMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+        fMat.emissiveColor = new BABYLON.Color3(0.9, 0.9, 1);
+        frame.material = fMat;
+      }
+    }
+
+    // ===== בחירה =====
+    function setupPicking(scene) {
+      scene.onPointerDown = (evt, pickResult) => {
+        if (!pickResult || !pickResult.hit || !pickResult.pickedMesh) return;
+
+        let node = pickResult.pickedMesh;
+        let maxDepth = 10;
+        while (node && maxDepth-- > 0 && (!node.metadata || node.metadata.type !== "itemRoot")) {
+          node = node.parent;
+        }
+        if (!node || !node.metadata || node.metadata.type !== "itemRoot") return;
+
+        toggleItem(node);
+      };
+
+      checkBtn.addEventListener("click", checkSolution);
+    }
+
+    // ===== אנימציה חלקה =====
+    function moveNodeTo(node, newPos) {
+      const from = node.position.clone();
+      const to = newPos.clone();
+
+      const anim = new BABYLON.Animation(
+        "moveAnim_" + node.name,
+        "position",
+        60,
+        BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+        BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+      );
+
+      const keys = [
+        { frame: 0, value: from },
+        { frame: 40, value: to }
+      ];
+      anim.setKeys(keys);
+      anim.setEasingFunction(new BABYLON.CubicEase());
+      anim.easingMode = BABYLON.EasingFunction.EASINGMODE_EASEINOUT;
+
+      node.animations = [anim];
+      scene.beginAnimation(node, 0, 40, false);
+    }
+
+    // ===== לוגיקת הוספה / הוצאה =====
+    function toggleItem(root) {
+      const idx = root.metadata.index;
+      const item = ITEMS[idx];
+
+      if (!root.metadata.selected) {
+        // הוספה
+        root.metadata.selected = true;
+        currentWeight += item.weight;
+        currentValue += item.value;
+
+        // חיפוש סלוט פנוי
+        let freeIndex = null;
+        for (let i = 0; i < backpackSlots.length; i++) {
+          let taken = false;
+          for (const n of itemRoots) {
+            if (n.metadata.selected && n.metadata.slotIndex === i) {
+              taken = true;
+              break;
+            }
+          }
+          if (!taken) {
+            freeIndex = i;
+            break;
+          }
+        }
+
+        if (freeIndex === null) {
+          // אין מקום
+          root.metadata.selected = false;
+          currentWeight -= item.weight;
+          currentValue -= item.value;
+          
+          msgEl.textContent = "🚫 הארגז מלא! הוצא מוצר כדי לפנות מקום";
+          msgEl.style.background = "linear-gradient(135deg, #F44336 0%, #E53935 100%)";
+          
+          setTimeout(() => {
+            updateHUD();
+          }, 2000);
+        } else {
+          root.metadata.slotIndex = freeIndex;
+          const target = backpackSlots[freeIndex];
+          moveNodeTo(root, target);
+          playMoveSfx();
+        }
+
+      } else {
+        // הוצאה
+        root.metadata.selected = false;
+        currentWeight -= item.weight;
+        currentValue -= item.value;
+        const base = root.metadata.basePosition.clone();
+        root.metadata.slotIndex = null;
+        moveNodeTo(root, base);
+        playMoveSfx();
+      }
+
+      updateHUD();
+    }
+
+    function updateHUD() {
+      weightEl.textContent = currentWeight;
+      valueEl.textContent = currentValue;
+
+      if (currentWeight > CAPACITY) {
+        weightEl.parentElement.style.background = "linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)";
+        msgEl.textContent = "⚠️ משקל גבוה מדי! הוצא מוצר כדי להיכנס לקיבולת";
+        msgEl.style.background = "linear-gradient(135deg, #FF6B35 0%, #F44336 100%)";
+      } else {
+        weightEl.parentElement.style.background = "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)";
+        
+        const progress = Math.round((currentValue / bestPossibleValue) * 100);
+        
+        if (currentValue === bestPossibleValue) {
+          msgEl.textContent = "🎉 מושלם! הגעת לפתרון האופטימלי!";
+          msgEl.style.background = "linear-gradient(135deg, #00C853 0%, #00897B 100%)";
+        } else if (progress >= 80) {
+          msgEl.textContent = `👍 מעולה! אתה ב-${progress}% מהפתרון האופטימלי`;
+          msgEl.style.background = "linear-gradient(135deg, #7CB342 0%, #558B2F 100%)";
+        } else if (progress >= 60) {
+          msgEl.textContent = `💪 טוב! אתה ב-${progress}% - נסה לשפר עוד`;
+          msgEl.style.background = "linear-gradient(135deg, #FFB300 0%, #FF8F00 100%)";
+        } else {
+          msgEl.textContent = "🎯 המשך לנסות קומבינציות - יש דרך טובה יותר!";
+          msgEl.style.background = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+        }
+      }
+    }
+
+    // ===== בדיקת פתרון =====
+    function checkSolution() {
+      if (currentWeight > CAPACITY) {
+        msgEl.textContent = "❌ לא יכול לבדוק - המשקל עדיין חורג מהקיבולת!";
+        msgEl.style.background = "linear-gradient(135deg, #F44336 0%, #D32F2F 100%)";
+        
+        // רעד קל
+        checkBtn.style.animation = "shake 0.5s";
+        setTimeout(() => {
+          checkBtn.style.animation = "";
+        }, 500);
+        return;
+      }
+
+      const diff = bestPossibleValue - currentValue;
+      const progress = Math.round((currentValue / bestPossibleValue) * 100);
+
+      if (diff === 0) {
+        msgEl.textContent = "🏆 פנטסטי! זה הפתרון האופטימלי המושלם!";
+        msgEl.style.background = "linear-gradient(135deg, #00C853 0%, #00796B 100%)";
+        
+        // חגיגה ויזואלית
+        confetti();
+      } else if (diff <= 2) {
+        msgEl.textContent = `🌟 כמעט מושלם! רק ${diff} נקודות עד האופטימום (${progress}%)`;
+        msgEl.style.background = "linear-gradient(135deg, #7CB342 0%, #558B2F 100%)";
+      } else if (diff <= 4) {
+        msgEl.textContent = `💪 די טוב! אבל יש פתרון טוב יותר ב-${diff} נקודות (${progress}%)`;
+        msgEl.style.background = "linear-gradient(135deg, #FFB300 0%, #FF8F00 100%)";
+      } else {
+        msgEl.textContent = `💡 נסה שוב! היעד הוא ${bestPossibleValue} - עכשיו ב-${progress}%`;
+        msgEl.style.background = "linear-gradient(135deg, #FF6B35 0%, #F44336 100%)";
+      }
+    }
+
+    // אפקט קונפטי פשוט
+    function confetti() {
+      const colors = ['#FF6B35', '#F7931E', '#FDC830', '#00C853', '#2196F3', '#9C27B0'];
+      
+      for (let i = 0; i < 30; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.style.position = 'fixed';
+          confetti.style.width = '10px';
+          confetti.style.height = '10px';
+          confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.left = Math.random() * window.innerWidth + 'px';
+          confetti.style.top = '-10px';
+          confetti.style.borderRadius = '50%';
+          confetti.style.pointerEvents = 'none';
+          confetti.style.zIndex = '9999';
+          confetti.style.transition = 'all 2s ease-out';
+          document.body.appendChild(confetti);
+          
+          setTimeout(() => {
+            confetti.style.top = window.innerHeight + 'px';
+            confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+            confetti.style.opacity = '0';
+          }, 10);
+          
+          setTimeout(() => {
+            confetti.remove();
+          }, 2100);
+        }, i * 50);
+      }
+    }
+
+    // CSS לאנימציית רעד
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // ===== התחלה =====
+    bestPossibleValue = computeOptimalValue();
+    targetEl.textContent = bestPossibleValue;
+    
+    scene = createScene();
+
+    // אופטימיזציה
+    scene.skipFrustumClipping = true;
+    scene.autoClear = false;
+    scene.autoClearDepthAndStencil = false;
+
+    engine.runRenderLoop(() => {
+      scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+      engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, 2));
+    });
+
+    // הצגת פאנל עזרה בטעינה ראשונה
+    setTimeout(() => {
+      if (!localStorage.getItem('knapsackGameSeen')) {
+        infoPanel.style.display = 'flex';
+        localStorage.setItem('knapsackGameSeen', 'true');
+      }
+    }, 500);
+  </script>
+</body>
+</html>

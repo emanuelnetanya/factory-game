@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>סיור במפעל תעשייתי - מובייל</title>
+
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;900&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Heebo', sans-serif;
+      overflow: hidden;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      position: fixed;
+      width: 100%;
+      height: 100%;
+    }
+
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      outline: none;
+    }
+
+    /* Start Screen - Mobile */
+    #start-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    #start-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.8s ease-out;
+    }
+
+    .start-content {
+      text-align: center;
+      padding: 40px 30px;
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 25px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      max-width: 90%;
+      width: 380px;
+    }
+
+    .factory-icon {
+      font-size: 60px;
+      margin-bottom: 20px;
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 15px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: #7f8c8d;
+      margin-bottom: 30px;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    #start-btn {
+      padding: 16px 45px;
+      font-size: 18px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 35px;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s ease;
+      font-family: 'Heebo', sans-serif;
+    }
+
+    #start-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Station Info - Mobile */
+    .station-info {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.94));
+      padding: 15px 25px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      display: none;
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      text-align: center;
+      max-width: 85%;
+      border: 2px solid rgba(102, 126, 234, 0.2);
+    }
+
+    .station-info.show {
+      display: block;
+      animation: slideDown 0.5s ease;
+    }
+
+    @keyframes slideDown {
+      from { 
+        transform: translateX(-50%) translateY(-15px); 
+        opacity: 0; 
+      }
+      to { 
+        transform: translateX(-50%) translateY(0); 
+        opacity: 1; 
+      }
+    }
+
+    .station-name {
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: #667eea;
+      font-weight: 700;
+    }
+
+    .station-desc {
+      font-size: 14px;
+      font-weight: 400;
+      color: #7f8c8d;
+      line-height: 1.4;
+    }
+
+    /* Instructions */
+    .instructions {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.95);
+      padding: 10px 20px;
+      border-radius: 20px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+      font-size: 13px;
+      font-weight: 500;
+      color: #7f8c8d;
+      display: none;
+      backdrop-filter: blur(10px);
+      z-index: 99;
+    }
+
+    .instructions.show {
+      display: block;
+    }
+
+    /* Next Button - Mobile Touch */
+    #next-btn {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 18px 45px;
+      font-size: 17px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 35px;
+      box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+      font-family: 'Heebo', sans-serif;
+      z-index: 101;
+      display: none;
+    }
+
+    #next-btn.show {
+      display: block;
+      animation: fadeInPulse 0.6s ease;
+    }
+
+    #next-btn:active {
+      transform: translateX(-50%) scale(0.92);
+    }
+
+    @keyframes fadeInPulse {
+      0% { 
+        opacity: 0; 
+        transform: translateX(-50%) translateY(20px);
+      }
+      100% { 
+        opacity: 1; 
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    /* Machine Labels */
+    .machine-label {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #2c3e50;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+      pointer-events: none;
+      z-index: 90;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- Start Screen -->
+  <div id="start-screen">
+    <div class="start-content">
+      <div class="factory-icon">🏭</div>
+      <h1>סיור במפעל תעשייתי</h1>
+      <div class="subtitle">
+        התנסות וירטואלית במפעל ייצור מתקדם<br/>
+        עקוב אחרי התחנות ולמד על התהליך
+      </div>
+      <button id="start-btn">🚀 התחל סיור</button>
+    </div>
+  </div>
+
+  <!-- Station Info -->
+  <div class="station-info" id="station-info">
+    <div class="station-name" id="station-name"></div>
+    <div class="station-desc" id="station-desc"></div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="instructions" id="instructions">
+    👆 לחץ על הכפתור למעבר לתחנה הבאה
+  </div>
+
+  <!-- Next Button for Mobile -->
+  <button id="next-btn">➤ המשך לתחנה הבאה</button>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, { 
+      preserveDrawingBuffer: true, 
+      stencil: true,
+      antialias: true 
+    });
+
+    // Mobile Scale
+    const SCALE = 0.5;
+
+    // ========= GAME STATE =========
+    const gameState = {
+      isActive: false,
+      currentStation: 0,
+      isMoving: false,
+      walkSpeed: 0.06,
+      rotationSpeed: 0.12,
+      waitingForInput: false
+    };
+
+    // תחנות הסיור
+    const stations = [
+      {
+        position: new BABYLON.Vector3(0, 0, -25 * SCALE),
+        name: "כניסה למפעל",
+        description: "ברוכים הבאים למפעל התעשייתי המתקדם",
+        hasInfo: false
+      },
+      {
+        position: new BABYLON.Vector3(0, 0, -15 * SCALE),
+        name: "אזור קבלה",
+        description: "כאן מתחיל תהליך הייצור",
+        hasInfo: true
+      },
+      {
+        position: new BABYLON.Vector3(-14 * SCALE, 0, -8 * SCALE),
+        name: "🔧 מכונת CNC",
+        description: "מכונת כרסום ממוחשבת לעיבוד מדויק",
+        hasInfo: true
+      },
+      {
+        position: new BABYLON.Vector3(-14 * SCALE, 0, 3 * SCALE),
+        name: "📦 קו ייצור",
+        description: "מסוע אוטומטי להעברת מוצרים",
+        hasInfo: true
+      },
+      {
+        position: new BABYLON.Vector3(-14 * SCALE, 2.5 * SCALE, 14 * SCALE),
+        name: "🤖 רובוט ריתוך",
+        description: "זרוע רובוטית לריתוך מדויק",
+        hasInfo: true
+      },
+      {
+        position: new BABYLON.Vector3(0, 2.5 * SCALE, 16 * SCALE),
+        name: "🌉 גשר תצפית",
+        description: "נקודת תצפית על רצפת הייצור",
+        hasInfo: false
+      },
+      {
+        position: new BABYLON.Vector3(14 * SCALE, 2.5 * SCALE, 14 * SCALE),
+        name: "📦 אריזה אוטומטית",
+        description: "מערכת אריזה ממוחשבת",
+        hasInfo: true
+      },
+      {
+        position: new BABYLON.Vector3(14 * SCALE, 0, 3 * SCALE),
+        name: "🔍 בקרת איכות",
+        description: "בדיקה ומיון מוצרים",
+        hasInfo: true
+      },
+      {
+        position: new BABYLON.Vector3(14 * SCALE, 0, -8 * SCALE),
+        name: "📦 מחסן חכם",
+        description: "אחסון אוטומטי של מוצרים",
+        hasInfo: true
+      },
+      {
+        position: new BABYLON.Vector3(0, 0, -15 * SCALE),
+        name: "🏁 סיום הסיור",
+        description: "תודה שביקרתם במפעל שלנו!",
+        hasInfo: true
+      }
+    ];
+
+    let scene, camera, playerRoot, playerBody, playerHead;
+    let leftArm, rightArm, leftLeg, rightLeg;
+
+    // ========= CREATE SCENE =========
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color3(0.92, 0.94, 0.97);
+      
+      // ערפל אטמוספרי
+      scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+      scene.fogDensity = 0.01;
+      scene.fogColor = new BABYLON.Color3(0.9, 0.92, 0.95);
+
+      // תאורה
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.8;
+      hemi.diffuse = new BABYLON.Color3(1, 1, 1);
+      hemi.groundColor = new BABYLON.Color3(0.5, 0.5, 0.55);
+
+      const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-0.5, -1, 0.5), scene);
+      sun.intensity = 1.2;
+      sun.position = new BABYLON.Vector3(20 * SCALE, 30 * SCALE, -20 * SCALE);
+
+      // מצלמה מאחורה/מעל השחקן
+      camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 8 * SCALE, -15 * SCALE), scene);
+      camera.setTarget(new BABYLON.Vector3(0, 0, 0));
+      scene.activeCamera = camera;
+
+      // רצפה עם טקסטורה
+      createFloor(scene);
+
+      // בניין המפעל
+      createBuilding(scene);
+
+      // מדרגות מתוקנות
+      createStairs(scene);
+
+      // מכונות משופרות
+      createMachines(scene);
+
+      // דמות השחקן
+      createPlayer(scene);
+
+      return scene;
+    }
+
+    // ========= רצפה עם טקסטורה =========
+    function createFloor(scene) {
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { 
+        width: 70 * SCALE, 
+        height: 70 * SCALE 
+      }, scene);
+      
+      const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+      groundMat.diffuseColor = new BABYLON.Color3(0.75, 0.78, 0.82);
+      groundMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+      
+      // טקסטורת רצפת בטון
+      const groundTexture = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/floor.png", scene);
+      groundTexture.uScale = 15;
+      groundTexture.vScale = 15;
+      groundMat.diffuseTexture = groundTexture;
+      groundMat.bumpTexture = groundTexture;
+      groundMat.bumpTexture.level = 0.3;
+      
+      ground.material = groundMat;
+      ground.receiveShadows = true;
+
+      // קווי סימון צהובים
+      for (let i = -2; i <= 2; i++) {
+        if (i !== 0) {
+          const line = BABYLON.MeshBuilder.CreateBox("line" + i, {
+            width: 50 * SCALE,
+            height: 0.02 * SCALE,
+            depth: 0.15 * SCALE
+          }, scene);
+          line.position = new BABYLON.Vector3(i * 7 * SCALE, 0.01 * SCALE, 0);
+          
+          const lineMat = new BABYLON.StandardMaterial("lineMat", scene);
+          lineMat.diffuseColor = new BABYLON.Color3(1, 0.85, 0);
+          lineMat.emissiveColor = new BABYLON.Color3(0.5, 0.4, 0);
+          line.material = lineMat;
+        }
+      }
+    }
+
+    // ========= בניין המפעל =========
+    function createBuilding(scene) {
+      const wallHeight = 12 * SCALE;
+      const wallMat = new BABYLON.StandardMaterial("wallMat", scene);
+      wallMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.97);
+      wallMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+
+      // קירות
+      const walls = [
+        { width: 0.5 * SCALE, height: wallHeight, depth: 50 * SCALE, x: -23 * SCALE, z: 0 },
+        { width: 0.5 * SCALE, height: wallHeight, depth: 50 * SCALE, x: 23 * SCALE, z: 0 },
+        { width: 46 * SCALE, height: wallHeight, depth: 0.5 * SCALE, x: 0, z: 20 * SCALE },
+        { width: 15 * SCALE, height: wallHeight, depth: 0.5 * SCALE, x: -15.5 * SCALE, z: -20 * SCALE },
+        { width: 15 * SCALE, height: wallHeight, depth: 0.5 * SCALE, x: 15.5 * SCALE, z: -20 * SCALE }
+      ];
+
+      walls.forEach((w, i) => {
+        const wall = BABYLON.MeshBuilder.CreateBox("wall" + i, w, scene);
+        wall.position = new BABYLON.Vector3(w.x, wallHeight / 2, w.z);
+        wall.material = wallMat;
+      });
+
+      // שער כניסה עם שלט
+      const entrance = BABYLON.MeshBuilder.CreateBox("entrance", {
+        width: 14 * SCALE,
+        height: 4 * SCALE,
+        depth: 0.3 * SCALE
+      }, scene);
+      entrance.position = new BABYLON.Vector3(0, 8 * SCALE, -20.2 * SCALE);
+      
+      const entranceMat = new BABYLON.StandardMaterial("entranceMat", scene);
+      entranceMat.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.8);
+      entranceMat.emissiveColor = new BABYLON.Color3(0.1, 0.2, 0.4);
+      entrance.material = entranceMat;
+
+      // טקסט על השלט (כ-PLANE עם טקסטורה)
+      const signText = BABYLON.MeshBuilder.CreatePlane("signText", {
+        width: 12 * SCALE,
+        height: 2 * SCALE
+      }, scene);
+      signText.position = new BABYLON.Vector3(0, 8 * SCALE, -20.35 * SCALE);
+      
+      const signTextMat = new BABYLON.StandardMaterial("signTextMat", scene);
+      signTextMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+      signTextMat.emissiveColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+      signText.material = signTextMat;
+
+      // תקרה שקופה
+      const roof = BABYLON.MeshBuilder.CreateBox("roof", { 
+        width: 46 * SCALE, 
+        height: 0.3 * SCALE, 
+        depth: 50 * SCALE 
+      }, scene);
+      roof.position.y = wallHeight;
+      
+      const roofMat = new BABYLON.StandardMaterial("roofMat", scene);
+      roofMat.diffuseColor = new BABYLON.Color3(0.8, 0.85, 0.9);
+      roofMat.alpha = 0.2;
+      roofMat.specularColor = new BABYLON.Color3(1, 1, 1);
+      roof.material = roofMat;
+
+      // חלונות
+      createWindows(scene, wallHeight);
+    }
+
+    // ========= חלונות =========
+    function createWindows(scene, wallHeight) {
+      const windowMat = new BABYLON.StandardMaterial("windowMat", scene);
+      windowMat.diffuseColor = new BABYLON.Color3(0.7, 0.85, 1);
+      windowMat.alpha = 0.4;
+      windowMat.specularColor = new BABYLON.Color3(1, 1, 1);
+
+      for (let i = 0; i < 3; i++) {
+        // חלונות שמאל
+        const winL = BABYLON.MeshBuilder.CreateBox("winL" + i, {
+          width: 0.1 * SCALE,
+          height: 3 * SCALE,
+          depth: 4 * SCALE
+        }, scene);
+        winL.position = new BABYLON.Vector3(-23 * SCALE, 6 * SCALE, (-12 + i * 12) * SCALE);
+        winL.material = windowMat;
+
+        // חלונות ימין
+        const winR = BABYLON.MeshBuilder.CreateBox("winR" + i, {
+          width: 0.1 * SCALE,
+          height: 3 * SCALE,
+          depth: 4 * SCALE
+        }, scene);
+        winR.position = new BABYLON.Vector3(23 * SCALE, 6 * SCALE, (-12 + i * 12) * SCALE);
+        winR.material = windowMat;
+      }
+    }
+
+    // ========= מדרגות מתוקנות =========
+    function createStairs(scene) {
+      const stairMat = new BABYLON.StandardMaterial("stairMat", scene);
+      stairMat.diffuseColor = new BABYLON.Color3(0.55, 0.57, 0.6);
+      stairMat.metallic = 0.7;
+
+      const stairCount = 10;
+      const stairHeight = 0.25 * SCALE;
+      const stairDepth = 0.8 * SCALE;
+      const stairWidth = 4 * SCALE;
+      const platformHeight = 2.5 * SCALE;
+
+      // מדרגות שמאל - עולות
+      for (let i = 0; i < stairCount; i++) {
+        const stair = BABYLON.MeshBuilder.CreateBox("stairL" + i, {
+          width: stairWidth,
+          height: stairHeight,
+          depth: stairDepth
+        }, scene);
+        stair.position = new BABYLON.Vector3(
+          -14 * SCALE, 
+          stairHeight / 2 + i * stairHeight, 
+          8 * SCALE + i * stairDepth
+        );
+        stair.material = stairMat;
+      }
+
+      // מדרגות ימין - יורדות (מיקום מתוקן)
+      for (let i = 0; i < stairCount; i++) {
+        const stair = BABYLON.MeshBuilder.CreateBox("stairR" + i, {
+          width: stairWidth,
+          height: stairHeight,
+          depth: stairDepth
+        }, scene);
+        stair.position = new BABYLON.Vector3(
+          14 * SCALE, 
+          platformHeight - stairHeight / 2 - i * stairHeight, 
+          8 * SCALE + i * stairDepth
+        );
+        stair.material = stairMat;
+      }
+
+      // פלטפורמה עליונה (גובה מתוקן)
+      const platform = BABYLON.MeshBuilder.CreateBox("platform", {
+        width: 35 * SCALE,
+        height: 0.2 * SCALE,
+        depth: 8 * SCALE
+      }, scene);
+      platform.position = new BABYLON.Vector3(0, platformHeight, 16 * SCALE);
+      platform.material = stairMat;
+
+      // מעקות בטיחות
+      const railMat = new BABYLON.StandardMaterial("railMat", scene);
+      railMat.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.85);
+      railMat.metallic = 0.95;
+
+      // מעקה שמאל
+      for (let i = 0; i <= stairCount; i++) {
+        const rail = BABYLON.MeshBuilder.CreateCylinder("railL" + i, {
+          height: 1 * SCALE,
+          diameter: 0.08 * SCALE
+        }, scene);
+        rail.position = new BABYLON.Vector3(
+          -16 * SCALE, 
+          0.5 * SCALE + i * stairHeight, 
+          8 * SCALE + i * stairDepth
+        );
+        rail.material = railMat;
+      }
+
+      // מעקה ימין
+      for (let i = 0; i <= stairCount; i++) {
+        const rail = BABYLON.MeshBuilder.CreateCylinder("railR" + i, {
+          height: 1 * SCALE,
+          diameter: 0.08 * SCALE
+        }, scene);
+        rail.position = new BABYLON.Vector3(
+          16 * SCALE,
+          platformHeight + 0.5 * SCALE - i * stairHeight,
+          8 * SCALE + i * stairDepth
+        );
+        rail.material = railMat;
+      }
+    }
+
+    // ========= מכונות משופרות עם GSAP =========
+    function createMachines(scene) {
+      // מכונת CNC מרשימה
+      createCNCMachine(scene, new BABYLON.Vector3(-14 * SCALE, 0, -8 * SCALE));
+      
+      // קו ייצור דינמי
+      createConveyorBelt(scene, new BABYLON.Vector3(-14 * SCALE, 0, 3 * SCALE));
+      
+      // רובוט ריתוך מתקדם
+      createWeldingRobot(scene, new BABYLON.Vector3(-14 * SCALE, 2.5 * SCALE, 14 * SCALE));
+      
+      // מכונת אריזה
+      createPackagingMachine(scene, new BABYLON.Vector3(14 * SCALE, 2.5 * SCALE, 14 * SCALE));
+      
+      // בקרת איכות
+      createQualityControl(scene, new BABYLON.Vector3(14 * SCALE, 0, 3 * SCALE));
+      
+      // מחסן רובוטי
+      createWarehouse(scene, new BABYLON.Vector3(14 * SCALE, 0, -8 * SCALE));
+    }
+
+    // מכונת CNC עם אנימציות GSAP
+    function createCNCMachine(scene, position) {
+      const machine = new BABYLON.TransformNode("cnc", scene);
+      machine.position = position;
+
+      // בסיס מסיבי
+      const base = BABYLON.MeshBuilder.CreateBox("cncBase", { 
+        width: 4 * SCALE, 
+        height: 0.8 * SCALE, 
+        depth: 3 * SCALE 
+      }, scene);
+      base.position.y = 0.4 * SCALE;
+      base.parent = machine;
+      
+      const baseMat = new BABYLON.StandardMaterial("cncBaseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+      baseMat.metallic = 0.9;
+      baseMat.roughness = 0.2;
+      base.material = baseMat;
+
+      // גוף המכונה
+      const body = BABYLON.MeshBuilder.CreateBox("cncBody", { 
+        width: 3.5 * SCALE, 
+        height: 3 * SCALE, 
+        depth: 2.5 * SCALE 
+      }, scene);
+      body.position.y = 2 * SCALE;
+      body.parent = machine;
+      
+      const bodyMat = new BABYLON.StandardMaterial("cncBodyMat", scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(0.9, 0.92, 0.95);
+      bodyMat.specularColor = new BABYLON.Color3(0.6, 0.6, 0.6);
+      body.material = bodyMat;
+
+      // ראש כרסום מסתובב
+      const head = BABYLON.MeshBuilder.CreateCylinder("cncHead", { 
+        height: 1.2 * SCALE, 
+        diameter: 0.6 * SCALE 
+      }, scene);
+      head.position = new BABYLON.Vector3(0, 3.8 * SCALE, 0);
+      head.parent = machine;
+      
+      const headMat = new BABYLON.StandardMaterial("cncHeadMat", scene);
+      headMat.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.45);
+      headMat.metallic = 1;
+      headMat.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+      head.material = headMat;
+
+      // אנימציה עם GSAP
+      gsap.to(head.rotation, {
+        y: Math.PI * 2,
+        duration: 3,
+        repeat: -1,
+        ease: "none"
+      });
+
+      // פאנל בקרה דיגיטלי
+      const panel = BABYLON.MeshBuilder.CreateBox("cncPanel", { 
+        width: 1.5 * SCALE, 
+        height: 1.8 * SCALE, 
+        depth: 0.2 * SCALE 
+      }, scene);
+      panel.position = new BABYLON.Vector3(2.2 * SCALE, 1.5 * SCALE, 0);
+      panel.parent = machine;
+      
+      const panelMat = new BABYLON.StandardMaterial("cncPanelMat", scene);
+      panelMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+      panelMat.emissiveColor = new BABYLON.Color3(0, 0.2, 0.4);
+      panel.material = panelMat;
+
+      // נורות LED מהבהבות
+      for (let i = 0; i < 4; i++) {
+        const led = BABYLON.MeshBuilder.CreateSphere("led" + i, { 
+          diameter: 0.12 * SCALE 
+        }, scene);
+        led.position = new BABYLON.Vector3(2.3 * SCALE, (2 - i * 0.3) * SCALE, 0);
+        led.parent = machine;
+        
+        const ledMat = new BABYLON.StandardMaterial("ledMat" + i, scene);
+        ledMat.emissiveColor = new BABYLON.Color3(0, 1, 0.3);
+        led.material = ledMat;
+        
+        // אנימציית הבהוב
+        gsap.to(ledMat.emissiveColor, {
+          b: 1,
+          duration: 0.5 + i * 0.1,
+          repeat: -1,
+          yoyo: true,
+          ease: "power2.inOut"
+        });
+      }
+
+      // תאורת נקודה
+      const machineLight = new BABYLON.PointLight("cncLight", position.add(new BABYLON.Vector3(0, 5 * SCALE, 0)), scene);
+      machineLight.intensity = 10;
+      machineLight.range = 12 * SCALE;
+    }
+
+    // קו ייצור עם אנימציות
+    function createConveyorBelt(scene, position) {
+      const conveyor = new BABYLON.TransformNode("conveyor", scene);
+      conveyor.position = position;
+
+      // בסיס המסוע
+      const base = BABYLON.MeshBuilder.CreateBox("conveyorBase", { 
+        width: 7 * SCALE, 
+        height: 0.5 * SCALE, 
+        depth: 2 * SCALE 
+      }, scene);
+      base.position.y = 0.25 * SCALE;
+      base.parent = conveyor;
+      
+      const baseMat = new BABYLON.StandardMaterial("conveyorBaseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.35, 0.35, 0.4);
+      base.material = baseMat;
+
+      // חגורת המסוע
+      const belt = BABYLON.MeshBuilder.CreateBox("conveyorBelt", { 
+        width: 6.8 * SCALE, 
+        height: 0.2 * SCALE, 
+        depth: 1.8 * SCALE 
+      }, scene);
+      belt.position.y = 0.6 * SCALE;
+      belt.parent = conveyor;
+      
+      const beltMat = new BABYLON.StandardMaterial("conveyorBeltMat", scene);
+      beltMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+      beltMat.roughness = 0.8;
+      belt.material = beltMat;
+
+      // קופסאות על המסוע
+      for (let i = 0; i < 3; i++) {
+        const box = BABYLON.MeshBuilder.CreateBox("conveyorBox" + i, { 
+          width: 0.8 * SCALE, 
+          height: 0.8 * SCALE, 
+          depth: 0.8 * SCALE 
+        }, scene);
+        box.position = new BABYLON.Vector3((-2.5 + i * 2.5) * SCALE, 1.1 * SCALE, 0);
+        box.parent = conveyor;
+        
+        const boxMat = new BABYLON.StandardMaterial("boxMat" + i, scene);
+        boxMat.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.4);
+        box.material = boxMat;
+        
+        // אנימציית תנועה
+        gsap.to(box.position, {
+          x: 3 * SCALE,
+          duration: 4,
+          repeat: -1,
+          ease: "none",
+          onRepeat: function() {
+            box.position.x = -3 * SCALE;
+          }
+        });
+      }
+    }
+
+    // רובוט ריתוך מתקדם
+    function createWeldingRobot(scene, position) {
+      const robot = new BABYLON.TransformNode("robot", scene);
+      robot.position = position;
+
+      // בסיס הרובוט
+      const base = BABYLON.MeshBuilder.CreateCylinder("robotBase", { 
+        height: 0.7 * SCALE, 
+        diameter: 2 * SCALE 
+      }, scene);
+      base.position.y = 0.35 * SCALE;
+      base.parent = robot;
+      
+      const baseMat = new BABYLON.StandardMaterial("robotBaseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.35);
+      baseMat.metallic = 0.95;
+      base.material = baseMat;
+
+      // גוף הרובוט
+      const body = BABYLON.MeshBuilder.CreateCylinder("robotBody", { 
+        height: 1.5 * SCALE, 
+        diameter: 1 * SCALE 
+      }, scene);
+      body.position.y = 1.5 * SCALE;
+      body.parent = robot;
+      
+      const bodyMat = new BABYLON.StandardMaterial("robotBodyMat", scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(1, 0.6, 0.2);
+      bodyMat.specularColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+      body.material = bodyMat;
+
+      // זרוע הרובוט
+      const arm = BABYLON.MeshBuilder.CreateCylinder("robotArm", { 
+        height: 2 * SCALE, 
+        diameter: 0.4 * SCALE 
+      }, scene);
+      arm.position = new BABYLON.Vector3(0, 2.8 * SCALE, 0);
+      arm.rotation.z = Math.PI / 6;
+      arm.parent = robot;
+      
+      const armMat = new BABYLON.StandardMaterial("robotArmMat", scene);
+      armMat.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.92);
+      armMat.metallic = 1;
+      arm.material = armMat;
+
+      // אנימציית זרוע
+      gsap.to(arm.rotation, {
+        z: -Math.PI / 6,
+        duration: 2,
+        repeat: -1,
+        yoyo: true,
+        ease: "power2.inOut"
+      });
+
+      // ראש ריתוך עם ניצוצות
+      const weldHead = BABYLON.MeshBuilder.CreateCylinder("weldHead", { 
+        height: 0.5 * SCALE, 
+        diameter: 0.3 * SCALE 
+      }, scene);
+      weldHead.position = new BABYLON.Vector3(1.5 * SCALE, 3.5 * SCALE, 0);
+      weldHead.parent = robot;
+      
+      const weldMat = new BABYLON.StandardMaterial("weldMat", scene);
+      weldMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+      weldMat.emissiveColor = new BABYLON.Color3(0.3, 0.5, 1);
+      weldHead.material = weldMat;
+
+      // אפקט ניצוצות
+      gsap.to(weldMat.emissiveColor, {
+        r: 1,
+        g: 0.8,
+        b: 0.2,
+        duration: 0.1,
+        repeat: -1,
+        yoyo: true,
+        ease: "power4.in"
+      });
+    }
+
+    // מכונת אריזה
+    function createPackagingMachine(scene, position) {
+      const packager = new BABYLON.TransformNode("packager", scene);
+      packager.position = position;
+
+      // מסגרת המכונה
+      const frame = BABYLON.MeshBuilder.CreateBox("packagerFrame", { 
+        width: 3 * SCALE, 
+        height: 3.5 * SCALE, 
+        depth: 2.5 * SCALE 
+      }, scene);
+      frame.position.y = 1.75 * SCALE;
+      frame.parent = packager;
+      
+      const frameMat = new BABYLON.StandardMaterial("packagerFrameMat", scene);
+      frameMat.diffuseColor = new BABYLON.Color3(0.85, 0.87, 0.9);
+      frameMat.alpha = 0.3;
+      frameMat.wireframe = true;
+      frame.material = frameMat;
+
+      // גוף פנימי
+      const inner = BABYLON.MeshBuilder.CreateBox("packagerInner", { 
+        width: 2.8 * SCALE, 
+        height: 3.3 * SCALE, 
+        depth: 2.3 * SCALE 
+      }, scene);
+      inner.position.y = 1.75 * SCALE;
+      inner.parent = packager;
+      
+      const innerMat = new BABYLON.StandardMaterial("packagerInnerMat", scene);
+      innerMat.diffuseColor = new BABYLON.Color3(0.75, 0.78, 0.82);
+      inner.material = innerMat;
+
+      // זרועות אריזה
+      for (let i = 0; i < 2; i++) {
+        const arm = BABYLON.MeshBuilder.CreateBox("packArm" + i, { 
+          width: 0.3 * SCALE, 
+          height: 2 * SCALE, 
+          depth: 0.3 * SCALE 
+        }, scene);
+        arm.position = new BABYLON.Vector3((i - 0.5) * 2 * SCALE, 2.5 * SCALE, 0);
+        arm.parent = packager;
+        
+        const armMat = new BABYLON.StandardMaterial("packArmMat", scene);
+        armMat.diffuseColor = new BABYLON.Color3(0.4, 0.6, 0.85);
+        armMat.metallic = 0.8;
+        arm.material = armMat;
+        
+        // אנימציית זרועות
+        gsap.to(arm.position, {
+          y: 1.5 * SCALE,
+          duration: 1.5,
+          delay: i * 0.5,
+          repeat: -1,
+          yoyo: true,
+          ease: "power2.inOut"
+        });
+      }
+    }
+
+    // בקרת איכות
+    function createQualityControl(scene, position) {
+      const qc = new BABYLON.TransformNode("qc", scene);
+      qc.position = position;
+
+      // שולחן בדיקה
+      const desk = BABYLON.MeshBuilder.CreateBox("qcDesk", { 
+        width: 3 * SCALE, 
+        height: 0.8 * SCALE, 
+        depth: 2 * SCALE 
+      }, scene);
+      desk.position.y = 0.4 * SCALE;
+      desk.parent = qc;
+      
+      const deskMat = new BABYLON.StandardMaterial("qcDeskMat", scene);
+      deskMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.97);
+      desk.material = deskMat;
+
+      // מסך בקרה
+      const screen = BABYLON.MeshBuilder.CreateBox("qcScreen", { 
+        width: 1.8 * SCALE, 
+        height: 1.2 * SCALE, 
+        depth: 0.1 * SCALE 
+      }, scene);
+      screen.position = new BABYLON.Vector3(0, 1.6 * SCALE, 0);
+      screen.parent = qc;
+      
+      const screenMat = new BABYLON.StandardMaterial("qcScreenMat", scene);
+      screenMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+      screenMat.emissiveColor = new BABYLON.Color3(0.1, 0.3, 0.5);
+      screen.material = screenMat;
+
+      // אנימציית מסך
+      gsap.to(screenMat.emissiveColor, {
+        r: 0.2,
+        g: 0.5,
+        b: 0.8,
+        duration: 2,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut"
+      });
+
+      // סורק לייזר
+      const scanner = BABYLON.MeshBuilder.CreateCylinder("scanner", { 
+        height: 0.8 * SCALE, 
+        diameter: 0.3 * SCALE 
+      }, scene);
+      scanner.position = new BABYLON.Vector3(-0.8 * SCALE, 1.2 * SCALE, 0.5 * SCALE);
+      scanner.parent = qc;
+      
+      const scannerMat = new BABYLON.StandardMaterial("scannerMat", scene);
+      scannerMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.35);
+      scannerMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+      scanner.material = scannerMat;
+
+      // קו לייזר
+      const laser = BABYLON.MeshBuilder.CreateCylinder("laser", { 
+        height: 0.01 * SCALE, 
+        diameter: 2 * SCALE 
+      }, scene);
+      laser.position = new BABYLON.Vector3(-0.8 * SCALE, 0.9 * SCALE, 0.5 * SCALE);
+      laser.rotation.z = Math.PI / 2;
+      laser.parent = qc;
+      
+      const laserMat = new BABYLON.StandardMaterial("laserMat", scene);
+      laserMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+      laserMat.alpha = 0.5;
+      laser.material = laserMat;
+      
+      // אנימציית סריקה
+      gsap.to(laser.position, {
+        z: -0.5 * SCALE,
+        duration: 2,
+        repeat: -1,
+        yoyo: true,
+        ease: "none"
+      });
+    }
+
+    // מחסן רובוטי
+    function createWarehouse(scene, position) {
+      const warehouse = new BABYLON.TransformNode("warehouse", scene);
+      warehouse.position = position;
+
+      // מדפים
+      for (let row = 0; row < 2; row++) {
+        for (let level = 0; level < 3; level++) {
+          const shelf = BABYLON.MeshBuilder.CreateBox("shelf" + row + level, { 
+            width: 2.5 * SCALE, 
+            height: 0.1 * SCALE, 
+            depth: 1.5 * SCALE 
+          }, scene);
+          shelf.position = new BABYLON.Vector3(
+            (row - 0.5) * 3 * SCALE, 
+            0.5 * SCALE + level * 1.2 * SCALE, 
+            0
+          );
+          shelf.parent = warehouse;
+          
+          const shelfMat = new BABYLON.StandardMaterial("shelfMat", scene);
+          shelfMat.diffuseColor = new BABYLON.Color3(0.7, 0.5, 0.3);
+          shelf.material = shelfMat;
+
+          // קופסאות על המדפים
+          if (level > 0) {
+            for (let b = 0; b < 2; b++) {
+              const box = BABYLON.MeshBuilder.CreateBox("shelfBox", { 
+                width: 0.6 * SCALE, 
+                height: 0.5 * SCALE, 
+                depth: 0.5 * SCALE 
+              }, scene);
+              box.position = new BABYLON.Vector3(
+                (row - 0.5) * 3 * SCALE + (b - 0.5) * 0.8 * SCALE, 
+                0.8 * SCALE + level * 1.2 * SCALE, 
+                0
+              );
+              box.parent = warehouse;
+              
+              const boxMat = new BABYLON.StandardMaterial("shelfBoxMat", scene);
+              boxMat.diffuseColor = new BABYLON.Color3(0.85, 0.65, 0.45);
+              box.material = boxMat;
+            }
+          }
+        }
+
+        // עמודים
+        for (let i = 0; i < 3; i++) {
+          const pole = BABYLON.MeshBuilder.CreateCylinder("pole", { 
+            height: 4 * SCALE, 
+            diameter: 0.15 * SCALE 
+          }, scene);
+          pole.position = new BABYLON.Vector3(
+            (row - 0.5) * 3 * SCALE + (i - 1) * 1.2 * SCALE, 
+            2 * SCALE, 
+            0
+          );
+          pole.parent = warehouse;
+          
+          const poleMat = new BABYLON.StandardMaterial("poleMat", scene);
+          poleMat.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.45);
+          poleMat.metallic = 0.9;
+          pole.material = poleMat;
+        }
+      }
+    }
+
+    // ========= דמות השחקן =========
+    function createPlayer(scene) {
+      playerRoot = new BABYLON.TransformNode("playerRoot", scene);
+      playerRoot.position = stations[0].position.clone();
+
+      // גוף
+      playerBody = BABYLON.MeshBuilder.CreateCylinder("playerBody", { 
+        height: 1 * SCALE, 
+        diameterTop: 0.35 * SCALE,
+        diameterBottom: 0.4 * SCALE
+      }, scene);
+      playerBody.position.y = 0.75 * SCALE;
+      playerBody.parent = playerRoot;
+      
+      const bodyMat = new BABYLON.StandardMaterial("playerBodyMat", scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.8);
+      bodyMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+      playerBody.material = bodyMat;
+
+      // ראש
+      playerHead = BABYLON.MeshBuilder.CreateSphere("playerHead", { 
+        diameter: 0.35 * SCALE 
+      }, scene);
+      playerHead.position.y = 1.4 * SCALE;
+      playerHead.parent = playerRoot;
+      
+      const headMat = new BABYLON.StandardMaterial("playerHeadMat", scene);
+      headMat.diffuseColor = new BABYLON.Color3(0.95, 0.85, 0.75);
+      playerHead.material = headMat;
+
+      // עיניים
+      for (let side of [-1, 1]) {
+        const eye = BABYLON.MeshBuilder.CreateSphere("eye", { diameter: 0.06 * SCALE }, scene);
+        eye.position = new BABYLON.Vector3(side * 0.08 * SCALE, 1.42 * SCALE, 0.12 * SCALE);
+        eye.parent = playerRoot;
+        const eyeMat = new BABYLON.StandardMaterial("eyeMat", scene);
+        eyeMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+        eye.material = eyeMat;
+      }
+
+      // זרועות
+      leftArm = BABYLON.MeshBuilder.CreateCylinder("leftArm", { 
+        height: 0.7 * SCALE, 
+        diameter: 0.12 * SCALE
+      }, scene);
+      leftArm.position = new BABYLON.Vector3(-0.28 * SCALE, 0.95 * SCALE, 0);
+      leftArm.parent = playerRoot;
+      leftArm.material = bodyMat;
+      leftArm.metadata = { swingPhase: 0 };
+
+      rightArm = BABYLON.MeshBuilder.CreateCylinder("rightArm", { 
+        height: 0.7 * SCALE, 
+        diameter: 0.12 * SCALE
+      }, scene);
+      rightArm.position = new BABYLON.Vector3(0.28 * SCALE, 0.95 * SCALE, 0);
+      rightArm.parent = playerRoot;
+      rightArm.material = bodyMat;
+      rightArm.metadata = { swingPhase: Math.PI };
+
+      // רגליים
+      leftLeg = BABYLON.MeshBuilder.CreateCylinder("leftLeg", { 
+        height: 0.8 * SCALE, 
+        diameter: 0.15 * SCALE
+      }, scene);
+      leftLeg.position = new BABYLON.Vector3(-0.12 * SCALE, 0.4 * SCALE, 0);
+      leftLeg.parent = playerRoot;
+      leftLeg.material = bodyMat;
+      leftLeg.metadata = { swingPhase: 0 };
+
+      rightLeg = BABYLON.MeshBuilder.CreateCylinder("rightLeg", { 
+        height: 0.8 * SCALE, 
+        diameter: 0.15 * SCALE
+      }, scene);
+      rightLeg.position = new BABYLON.Vector3(0.12 * SCALE, 0.4 * SCALE, 0);
+      rightLeg.parent = playerRoot;
+      rightLeg.material = bodyMat;
+      rightLeg.metadata = { swingPhase: Math.PI };
+    }
+
+    // ========= עדכון מצלמה =========
+    function updateCamera() {
+      if (!playerRoot || !camera) return;
+      
+      // המצלמה עוקבת מאחורה ומעל
+      const targetPos = playerRoot.position.clone();
+      const cameraOffset = new BABYLON.Vector3(0, 6 * SCALE, -12 * SCALE);
+      
+      // חישוב מיקום המצלמה בהתאם לסיבוב השחקן
+      const rotMatrix = BABYLON.Matrix.RotationY(playerRoot.rotation.y);
+      const rotatedOffset = BABYLON.Vector3.TransformCoordinates(cameraOffset, rotMatrix);
+      const newCameraPos = targetPos.add(rotatedOffset);
+      
+      // תנועה חלקה של המצלמה עם GSAP
+      gsap.to(camera.position, {
+        x: newCameraPos.x,
+        y: newCameraPos.y,
+        z: newCameraPos.z,
+        duration: 0.5,
+        ease: "power2.out"
+      });
+      
+      // המצלמה מסתכלת על השחקן
+      camera.setTarget(targetPos.add(new BABYLON.Vector3(0, 0.5 * SCALE, 0)));
+    }
+
+    // ========= תנועת השחקן =========
+    function movePlayerToStation(deltaTime) {
+      if (!gameState.isMoving || !playerRoot) return;
+
+      const targetStation = stations[gameState.currentStation];
+      const target = targetStation.position;
+      const direction = target.subtract(playerRoot.position);
+      direction.y = 0;
+      const distance = direction.length();
+
+      // הגענו לתחנה
+      if (distance < 0.15 * SCALE) {
+        playerRoot.position.x = target.x;
+        playerRoot.position.z = target.z;
+        
+        // התאם גובה בצורה חלקה (לגשר)
+        gsap.to(playerRoot.position, {
+          y: target.y,
+          duration: 0.5,
+          ease: "power2.inOut"
+        });
+
+        gameState.isMoving = false;
+        gameState.waitingForInput = true;
+
+        // הצג מידע ולחצן
+        if (targetStation.hasInfo) {
+          showStationInfo(targetStation);
+        }
+        document.getElementById('next-btn').classList.add('show');
+
+        stopWalkAnimation();
+        return;
+      }
+
+      // תנועה חלקה
+      const moveDir = direction.normalize();
+      const speed = gameState.walkSpeed * deltaTime * 60;
+      
+      playerRoot.position.addInPlace(moveDir.scale(speed));
+
+      // התאמת גובה הדרגתית
+      if (Math.abs(playerRoot.position.y - target.y) > 0.01) {
+        playerRoot.position.y = BABYLON.Scalar.Lerp(playerRoot.position.y, target.y, 0.05);
+      }
+
+      // סיבוב לכיוון התנועה
+      const targetAngle = Math.atan2(moveDir.x, moveDir.z);
+      const currentAngle = playerRoot.rotation.y;
+      let angleDiff = targetAngle - currentAngle;
+      
+      while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+      while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+      
+      playerRoot.rotation.y += angleDiff * gameState.rotationSpeed;
+
+      // אנימציית הליכה
+      animateWalk(deltaTime, distance);
+    }
+
+    // אנימציית הליכה
+    function animateWalk(deltaTime, distance) {
+      const walkSpeed = Math.min(distance * 4, 6);
+      
+      if (leftArm) {
+        leftArm.metadata.swingPhase += deltaTime * walkSpeed;
+        leftArm.rotation.x = Math.sin(leftArm.metadata.swingPhase) * 0.3;
+      }
+      
+      if (rightArm) {
+        rightArm.metadata.swingPhase += deltaTime * walkSpeed;
+        rightArm.rotation.x = Math.sin(rightArm.metadata.swingPhase) * 0.3;
+      }
+      
+      if (leftLeg) {
+        leftLeg.metadata.swingPhase += deltaTime * walkSpeed;
+        leftLeg.rotation.x = Math.sin(leftLeg.metadata.swingPhase) * 0.4;
+      }
+      
+      if (rightLeg) {
+        rightLeg.metadata.swingPhase += deltaTime * walkSpeed;
+        rightLeg.rotation.x = Math.sin(rightLeg.metadata.swingPhase) * 0.4;
+      }
+
+      // תנועת גוף
+      const bob = Math.abs(Math.sin(Date.now() * 0.004 * walkSpeed)) * 0.05 * SCALE;
+      if (playerBody) playerBody.position.y = 0.75 * SCALE + bob;
+      if (playerHead) playerHead.position.y = 1.4 * SCALE + bob * 0.7;
+    }
+
+    // עצור אנימציה
+    function stopWalkAnimation() {
+      gsap.to([leftArm.rotation, rightArm.rotation, leftLeg.rotation, rightLeg.rotation], {
+        x: 0,
+        duration: 0.3,
+        ease: "power2.out"
+      });
+      
+      gsap.to(playerBody.position, { y: 0.75 * SCALE, duration: 0.3 });
+      gsap.to(playerHead.position, { y: 1.4 * SCALE, duration: 0.3 });
+    }
+
+    // הצג מידע על תחנה
+    function showStationInfo(station) {
+      document.getElementById('station-name').textContent = station.name;
+      document.getElementById('station-desc').textContent = station.description;
+      
+      const stationInfo = document.getElementById('station-info');
+      stationInfo.classList.add('show');
+      
+      // אנימציה עם GSAP
+      gsap.from(stationInfo, {
+        y: -20,
+        opacity: 0,
+        duration: 0.5,
+        ease: "back.out(1.7)"
+      });
+    }
+
+    // הסתר מידע
+    function hideStationInfo() {
+      document.getElementById('station-info').classList.remove('show');
+    }
+
+    // ========= מעבר לתחנה הבאה =========
+    function moveToNextStation() {
+      if (!gameState.waitingForInput || gameState.isMoving) return;
+
+      hideStationInfo();
+      document.getElementById('next-btn').classList.remove('show');
+      
+      gameState.currentStation++;
+      
+      if (gameState.currentStation >= stations.length) {
+        document.getElementById('instructions').textContent = '🎉 הסיור הסתיים בהצלחה!';
+        document.getElementById('next-btn').style.display = 'none';
+        gameState.isActive = false;
+        return;
+      }
+
+      gameState.waitingForInput = false;
+      gameState.isMoving = true;
+    }
+
+    // ========= אירועים =========
+    document.getElementById("next-btn").addEventListener("click", moveToNextStation);
+
+    document.getElementById("start-btn").addEventListener("click", () => {
+      const startScreen = document.getElementById("start-screen");
+      startScreen.classList.add("hidden");
+      
+      setTimeout(() => {
+        startScreen.style.display = "none";
+        document.getElementById("instructions").classList.add("show");
+      }, 800);
+
+      gameState.isActive = true;
+      gameState.isMoving = true;
+      gameState.currentStation = 1;
+    });
+
+    // ========= MAIN LOOP =========
+    scene = createScene();
+
+    let lastTime = Date.now();
+    engine.runRenderLoop(() => {
+      const now = Date.now();
+      const deltaTime = (now - lastTime) / 1000;
+      lastTime = now;
+
+      if (gameState.isActive) {
+        movePlayerToStation(deltaTime);
+        updateCamera();
+      }
+
+      scene.render();
+    });
+
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>

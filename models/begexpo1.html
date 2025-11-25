@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>משחק תרמיל הגב – ארגז ציוד תעשייתי PRO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <!-- BabylonJS + GUI -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Heebo", Arial, sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at 20% 0%, #ffffff 0%, #e3f2fd 35%, #bbdefb 70%, #90caf9 100%);
+    }
+
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      outline: none;
+    }
+
+    /* HUD תחתון */
+    #hud {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 10px;
+      width: 92%;
+      max-width: 960px;
+      background: rgba(255,255,255,0.98);
+      border-radius: 18px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      direction: rtl;
+      z-index: 10;
+    }
+
+    #hud span {
+      white-space: nowrap;
+    }
+
+    #message {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    #checkBtn {
+      border: none;
+      padding: 8px 20px;
+      border-radius: 999px;
+      background: #1e88e5;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    #checkBtn:active {
+      transform: scale(0.96);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="hud">
+    <span id="capacity">קיבולת: ?</span>
+    <span id="weight">משקל נוכחי: 0</span>
+    <span id="value">ערך נוכחי: 0</span>
+    <span id="message">לחץ על מוצר כדי להכניס / להוציא מהארגז</span>
+    <button id="checkBtn">✔ בדוק פתרון</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+
+    const SCALE = 0.5;
+
+    // ====== נתוני בעיית תרמיל הגב ======
+    const CAPACITY = 10;
+    const ITEMS = [
+      { name: "🔩 מנוע סרוו",      weight: 4, value: 9,  color: new BABYLON.Color3(0.98, 0.54, 0.20), type: "servo" },
+      { name: "🔦 חיישן לייזר",    weight: 2, value: 6,  color: new BABYLON.Color3(0.11, 0.80, 0.98), type: "laser" },
+      { name: "📦 בקר PLC",        weight: 3, value: 7,  color: new BABYLON.Color3(0.63, 0.40, 0.98), type: "plc" },
+      { name: "🤖 מודול זרוע",      weight: 5, value: 10, color: new BABYLON.Color3(1.00, 0.84, 0.15), type: "robotArm" },
+      { name: "📷 מצלמת QC",       weight: 1, value: 3,  color: new BABYLON.Color3(0.30, 0.88, 0.53), type: "camera" },
+      { name: "📡 מודול RFID",     weight: 2, value: 5,  color: new BABYLON.Color3(0.36, 0.69, 1.00), type: "rfid" }
+    ];
+
+    let scene, camera, ui;
+    let backpackBase;
+    let itemRoots = [];
+    let backpackSlots = [];
+    let currentWeight = 0;
+    let currentValue  = 0;
+    let bestPossibleValue = 0;
+
+    // HUD
+    const capacityEl = document.getElementById("capacity");
+    const weightEl   = document.getElementById("weight");
+    const valueEl    = document.getElementById("value");
+    const msgEl      = document.getElementById("message");
+    const checkBtn   = document.getElementById("checkBtn");
+
+    capacityEl.textContent = "קיבולת: " + CAPACITY;
+
+    // ===== חישוב הערך האופטימלי =====
+    function computeOptimalValue() {
+      const n = ITEMS.length;
+      let best = 0;
+      for (let mask = 0; mask < (1 << n); mask++) {
+        let w = 0;
+        let v = 0;
+        for (let i = 0; i < n; i++) {
+          if (mask & (1 << i)) {
+            w += ITEMS[i].weight;
+            v += ITEMS[i].value;
+          }
+        }
+        if (w <= CAPACITY && v > best) best = v;
+      }
+      return best;
+    }
+
+    // ===== יצירת סצנה =====
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color3(0.95, 0.98, 1);
+
+      // תאורה
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.9;
+
+      const dir = new BABYLON.DirectionalLight("dir",
+        new BABYLON.Vector3(-0.5, -1, -0.3),
+        scene);
+      dir.intensity = 0.6;
+
+      // מצלמה
+      camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(160),
+        BABYLON.Tools.ToRadians(63),
+        28 * SCALE,
+        new BABYLON.Vector3(0, 2.8 * SCALE, 0),
+        scene
+      );
+      camera.attachControl(canvas, true);
+      camera.lowerBetaLimit = BABYLON.Tools.ToRadians(38);
+      camera.upperBetaLimit = BABYLON.Tools.ToRadians(78);
+      camera.lowerRadiusLimit = 14 * SCALE;
+      camera.upperRadiusLimit = 32 * SCALE;
+
+      // סביבה – רצפה + קיר אחורי כמו מעבדת בדיקה
+      createEnvironment(scene);
+
+      // GUI
+      ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+      // תרמיל / ארגז ציוד
+      createBackpack(scene);
+
+      // מוצרים
+      createItems(scene);
+
+      // בחירה
+      setupPicking(scene);
+
+      return scene;
+    }
+
+    function createEnvironment(scene) {
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", {
+        width: 40 * SCALE,
+        height: 30 * SCALE
+      }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.96, 0.97, 1);
+      gMat.specularColor = new BABYLON.Color3(0.7, 0.7, 0.9);
+      ground.material = gMat;
+
+      // פסים זוהרים
+      for (let i = -2; i <= 2; i++) {
+        const stripe = BABYLON.MeshBuilder.CreateBox("stripe" + i, {
+          width: 40 * SCALE,
+          height: 0.02 * SCALE,
+          depth: 0.12 * SCALE
+        }, scene);
+        stripe.position = new BABYLON.Vector3(0, 0.01 * SCALE, i * 3 * SCALE);
+        const sMat = new BABYLON.StandardMaterial("sMat" + i, scene);
+        sMat.emissiveColor = new BABYLON.Color3(0.36, 0.65, 1);
+        sMat.alpha = 0.65;
+        stripe.material = sMat;
+      }
+
+      // קיר אחורי
+      const wall = BABYLON.MeshBuilder.CreateBox("wall", {
+        width: 40 * SCALE,
+        height: 12 * SCALE,
+        depth: 0.4 * SCALE
+      }, scene);
+      wall.position = new BABYLON.Vector3(0, 6 * SCALE, -8 * SCALE);
+      const wMat = new BABYLON.StandardMaterial("wMat", scene);
+      wMat.diffuseColor = new BABYLON.Color3(0.9, 0.93, 0.98);
+      wall.material = wMat;
+
+      // רצועת LED בקיר
+      const ledStrip = BABYLON.MeshBuilder.CreateBox("ledStrip", {
+        width: 36 * SCALE,
+        height: 0.3 * SCALE,
+        depth: 0.1 * SCALE
+      }, scene);
+      ledStrip.position = new BABYLON.Vector3(0, 9 * SCALE, -7.8 * SCALE);
+      const ledMat = new BABYLON.StandardMaterial("ledMat", scene);
+      ledMat.emissiveColor = new BABYLON.Color3(0.26, 0.82, 0.96);
+      ledStrip.material = ledMat;
+
+      // שולחן עבודה
+      const tableTop = BABYLON.MeshBuilder.CreateBox("tableTop", {
+        width: 24 * SCALE,
+        depth: 12 * SCALE,
+        height: 0.5 * SCALE
+      }, scene);
+      tableTop.position.y = 2.4 * SCALE;
+      const tMat = new BABYLON.StandardMaterial("tMat", scene);
+      tMat.diffuseColor = new BABYLON.Color3(0.92, 0.93, 0.98);
+      tMat.specularColor = new BABYLON.Color3(0.85, 0.85, 0.9);
+      tableTop.material = tMat;
+
+      for (let sx of [-1, 1]) {
+        for (let sz of [-1, 1]) {
+          const leg = BABYLON.MeshBuilder.CreateBox("leg", {
+            width: 0.7 * SCALE,
+            depth: 0.7 * SCALE,
+            height: 2.4 * SCALE
+          }, scene);
+          leg.position = new BABYLON.Vector3(
+            sx * 11 * SCALE,
+            1.2 * SCALE,
+            sz * 5.5 * SCALE
+          );
+          leg.material = tMat;
+        }
+      }
+    }
+
+    // ===== תרמיל / ארגז ציוד =====
+    function createBackpack(scene) {
+      // בסיס
+      backpackBase = BABYLON.MeshBuilder.CreateBox("backpackBase", {
+        width: 7 * SCALE,
+        height: 0.5 * SCALE,
+        depth: 5 * SCALE
+      }, scene);
+      backpackBase.position = new BABYLON.Vector3(10 * SCALE, 2.65 * SCALE, 0);
+      const baseMat = new BABYLON.StandardMaterial("baseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.80, 0.86, 0.95);
+      baseMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.95);
+      backpackBase.material = baseMat;
+
+      // גוף עגול מעט – משתמשים ב-CreateCylinder ואז מותחים
+      const body = BABYLON.MeshBuilder.CreateCylinder("packBody", {
+        diameter: 7 * SCALE,
+        height: 3.2 * SCALE,
+        tessellation: 32
+      }, scene);
+      body.scaling.z = 0.7;
+      body.position = backpackBase.position.add(new BABYLON.Vector3(0, 1.8 * SCALE, 0.1 * SCALE));
+      const bodyMat = new BABYLON.StandardMaterial("bodyMat", scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(0.45, 0.62, 0.93);
+      bodyMat.alpha = 0.55;
+      body.material = bodyMat;
+
+      // מכסה קדמי
+      const lid = BABYLON.MeshBuilder.CreateCylinder("packLid", {
+        diameter: 7 * SCALE,
+        height: 0.4 * SCALE,
+        tessellation: 32
+      }, scene);
+      lid.scaling.z = 0.7;
+      lid.position = backpackBase.position.add(new BABYLON.Vector3(0, 3.3 * SCALE, 0.2 * SCALE));
+      const lidMat = new BABYLON.StandardMaterial("lidMat", scene);
+      lidMat.diffuseColor = new BABYLON.Color3(0.35, 0.52, 0.88);
+      lid.material = lidMat;
+
+      // ידית עליונה
+      const handle = BABYLON.MeshBuilder.CreateTorus("handle", {
+        diameter: 3 * SCALE,
+        thickness: 0.3 * SCALE,
+        tessellation: 32
+      }, scene);
+      handle.position = backpackBase.position.add(new BABYLON.Vector3(0, 3.9 * SCALE, 2 * SCALE));
+      const handleMat = new BABYLON.StandardMaterial("handleMat", scene);
+      handleMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 1);
+      handleMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+      handle.material = handleMat;
+
+      // סלוטים – 2 שורות * 3 עמודות
+      const center = backpackBase.position.add(new BABYLON.Vector3(0, 0.6 * SCALE, 0));
+      const dx = 2.2 * SCALE;
+      const dz = 1.7 * SCALE;
+
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 3; col++) {
+          const pos = new BABYLON.Vector3(
+            center.x + (col - 1) * dx,
+            center.y + row * 1.3 * SCALE,
+            center.z + (row === 0 ? 0.6 * SCALE : -0.6 * SCALE)
+          );
+          backpackSlots.push(pos);
+
+          // שרטוט סלוט על הרצפה (רק ויזואלי)
+          const slot = BABYLON.MeshBuilder.CreateBox("slotViz", {
+            width: 1.9 * SCALE,
+            height: 0.03 * SCALE,
+            depth: 1.3 * SCALE
+          }, scene);
+          slot.position = new BABYLON.Vector3(pos.x, backpackBase.position.y + 0.01 * SCALE, pos.z);
+          const sMat = new BABYLON.StandardMaterial("slotMat", scene);
+          sMat.diffuseColor = new BABYLON.Color3(0.7, 0.85, 1);
+          sMat.alpha = 0.45;
+          slot.material = sMat;
+        }
+      }
+
+      // כיתוב GUI "ארגז ציוד"
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.width = "140px";
+      rect.height = "34px";
+      rect.thickness = 0;
+      rect.cornerRadius = 17;
+      rect.background = "rgba(255,255,255,0.96)";
+      ui.addControl(rect);
+      rect.linkWithMesh(backpackBase);
+      rect.linkOffsetY = -42;
+
+      const txt = new BABYLON.GUI.TextBlock();
+      txt.text = "🎒 ארגז ציוד תעשייתי";
+      txt.color = "#1a237e";
+      txt.fontSize = 14;
+      txt.fontFamily = "Heebo";
+      rect.addControl(txt);
+    }
+
+    // ===== יצירת המוצרים =====
+    function createItems(scene) {
+      itemRoots = [];
+      const startX = -11 * SCALE;
+      const gapX   = 4 * SCALE;
+      const rowZ   = [-2.5 * SCALE, 2.5 * SCALE];
+
+      ITEMS.forEach((item, i) => {
+        const row = i < 3 ? 0 : 1;
+        const col = i % 3;
+
+        const root = new BABYLON.TransformNode("itemRoot_" + i, scene);
+        root.position = new BABYLON.Vector3(
+          startX + col * gapX,
+          2.8 * SCALE,
+          rowZ[row]
+        );
+
+        // מודל לפי סוג
+        buildItemModel(scene, root, item);
+
+        root.metadata = {
+          type: "itemRoot",
+          index: i,
+          selected: false,
+          basePosition: root.position.clone(),
+          slotIndex: null
+        };
+
+        // תווית GUI
+        const rect = new BABYLON.GUI.Rectangle();
+        rect.width = "210px";
+        rect.height = "64px";
+        rect.thickness = 0;
+        rect.cornerRadius = 18;
+        rect.background = "rgba(255,255,255,0.97)";
+        ui.addControl(rect);
+        rect.linkWithMesh(root);
+        rect.linkOffsetY = -60;
+
+        const lbl = new BABYLON.GUI.TextBlock();
+        lbl.text = `${item.name}\nמשקל: ${item.weight} | ערך: ${item.value}`;
+        lbl.fontFamily = "Heebo";
+        lbl.color = "#263238";
+        lbl.fontSize = 13;
+        lbl.textWrapping = true;
+        rect.addControl(lbl);
+
+        itemRoots.push(root);
+      });
+    }
+
+    // מודלים אמיתיים יותר לכל מוצר
+    function buildItemModel(scene, root, item) {
+      const col = item.color;
+
+      if (item.type === "servo") {
+        // בסיס
+        const base = BABYLON.MeshBuilder.CreateBox("servoBase", {
+          width: 1.8 * SCALE,
+          height: 0.6 * SCALE,
+          depth: 1.4 * SCALE
+        }, scene);
+        base.parent = root;
+        base.position.y = 0.3 * SCALE;
+        const baseMat = new BABYLON.StandardMaterial("servoBaseMat", scene);
+        baseMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.18);
+        baseMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+        base.material = baseMat;
+
+        const body = BABYLON.MeshBuilder.CreateBox("servoBody", {
+          width: 1.5 * SCALE,
+          height: 0.9 * SCALE,
+          depth: 1.1 * SCALE
+        }, scene);
+        body.parent = root;
+        body.position.y = 0.9 * SCALE;
+        const bodyMat = new BABYLON.StandardMaterial("servoBodyMat", scene);
+        bodyMat.diffuseColor = col;
+        bodyMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+        body.material = bodyMat;
+
+        const shaft = BABYLON.MeshBuilder.CreateCylinder("servoShaft", {
+          diameter: 0.35 * SCALE,
+          height: 0.4 * SCALE
+        }, scene);
+        shaft.parent = root;
+        shaft.position = new BABYLON.Vector3(0, 1.4 * SCALE, 0);
+        const shaftMat = new BABYLON.StandardMaterial("shaftMat", scene);
+        shaftMat.diffuseColor = new BABYLON.Color3(0.9, 0.9, 0.95);
+        shaft.material = shaftMat;
+
+        const horn = BABYLON.MeshBuilder.CreateBox("servoHorn", {
+          width: 1.6 * SCALE,
+          height: 0.12 * SCALE,
+          depth: 0.35 * SCALE
+        }, scene);
+        horn.parent = root;
+        horn.position = new BABYLON.Vector3(0, 1.55 * SCALE, 0);
+        horn.material = shaftMat;
+
+      } else if (item.type === "laser") {
+        const body = BABYLON.MeshBuilder.CreateBox("laserBody", {
+          width: 1.6 * SCALE,
+          height: 0.7 * SCALE,
+          depth: 1.1 * SCALE
+        }, scene);
+        body.parent = root;
+        const bodyMat = new BABYLON.StandardMaterial("laserBodyMat", scene);
+        bodyMat.diffuseColor = col;
+        bodyMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+        body.material = bodyMat;
+
+        const lens = BABYLON.MeshBuilder.CreateCylinder("laserLens", {
+          diameter: 0.6 * SCALE,
+          height: 0.35 * SCALE,
+          tessellation: 24
+        }, scene);
+        lens.parent = root;
+        lens.position.z = 0.7 * SCALE;
+        const lensMat = new BABYLON.StandardMaterial("lensMat", scene);
+        lensMat.diffuseColor = new BABYLON.Color3(0.1, 0.5, 1);
+        lensMat.emissiveColor = new BABYLON.Color3(0.1, 0.6, 1);
+        lens.material = lensMat;
+
+        const bracket = BABYLON.MeshBuilder.CreateBox("laserBracket", {
+          width: 0.8 * SCALE,
+          height: 0.2 * SCALE,
+          depth: 1.2 * SCALE
+        }, scene);
+        bracket.parent = root;
+        bracket.position.y = -0.45 * SCALE;
+        const brMat = new BABYLON.StandardMaterial("brMat", scene);
+        brMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+        bracket.material = brMat;
+
+      } else if (item.type === "plc") {
+        const rack = BABYLON.MeshBuilder.CreateBox("plcRack", {
+          width: 2.4 * SCALE,
+          height: 1.4 * SCALE,
+          depth: 0.9 * SCALE
+        }, scene);
+        rack.parent = root;
+        rack.position.y = 0.8 * SCALE;
+        const rMat = new BABYLON.StandardMaterial("rackMat", scene);
+        rMat.diffuseColor = new BABYLON.Color3(0.18, 0.19, 0.22);
+        rack.material = rMat;
+
+        for (let i = 0; i < 4; i++) {
+          const mod = BABYLON.MeshBuilder.CreateBox("plcMod" + i, {
+            width: 0.5 * SCALE,
+            height: 1.1 * SCALE,
+            depth: 0.7 * SCALE
+          }, scene);
+          mod.parent = root;
+          mod.position = new BABYLON.Vector3(
+            -0.75 * SCALE + i * 0.5 * SCALE,
+            0.8 * SCALE,
+            0
+          );
+          const mMat = new BABYLON.StandardMaterial("plcModMat" + i, scene);
+          mMat.diffuseColor = new BABYLON.Color3(0.4 + 0.1 * i, 0.5, 0.7);
+          mod.material = mMat;
+        }
+
+      } else if (item.type === "robotArm") {
+        const base = BABYLON.MeshBuilder.CreateCylinder("armBase", {
+          diameter: 1.3 * SCALE,
+          height: 0.4 * SCALE
+        }, scene);
+        base.parent = root;
+        base.position.y = 0.2 * SCALE;
+        const baseMat = new BABYLON.StandardMaterial("armBaseMat", scene);
+        baseMat.diffuseColor = new BABYLON.Color3(0.25, 0.25, 0.3);
+        base.material = baseMat;
+
+        const joint1 = BABYLON.MeshBuilder.CreateCylinder("joint1", {
+          diameter: 0.9 * SCALE,
+          height: 0.6 * SCALE
+        }, scene);
+        joint1.parent = root;
+        joint1.position.y = 0.7 * SCALE;
+        const jMat = new BABYLON.StandardMaterial("jMat", scene);
+        jMat.diffuseColor = col;
+        joint1.material = jMat;
+
+        const arm1 = BABYLON.MeshBuilder.CreateBox("arm1", {
+          width: 0.4 * SCALE,
+          height: 1.6 * SCALE,
+          depth: 0.4 * SCALE
+        }, scene);
+        arm1.parent = root;
+        arm1.position = new BABYLON.Vector3(0, 1.6 * SCALE, 0.2 * SCALE);
+        arm1.rotation.z = -0.3;
+        arm1.material = jMat;
+
+        const joint2 = BABYLON.MeshBuilder.CreateSphere("joint2", {
+          diameter: 0.6 * SCALE
+        }, scene);
+        joint2.parent = root;
+        joint2.position = new BABYLON.Vector3(0.3 * SCALE, 2.2 * SCALE, 0.4 * SCALE);
+        joint2.material = jMat;
+
+        const arm2 = BABYLON.MeshBuilder.CreateBox("arm2", {
+          width: 0.35 * SCALE,
+          height: 1.2 * SCALE,
+          depth: 0.35 * SCALE
+        }, scene);
+        arm2.parent = root;
+        arm2.position = new BABYLON.Vector3(0.4 * SCALE, 2.7 * SCALE, 0.7 * SCALE);
+        arm2.rotation.z = 0.4;
+        arm2.material = jMat;
+
+        const gripper = BABYLON.MeshBuilder.CreateBox("gripper", {
+          width: 0.7 * SCALE,
+          height: 0.2 * SCALE,
+          depth: 0.5 * SCALE
+        }, scene);
+        gripper.parent = root;
+        gripper.position = new BABYLON.Vector3(0.6 * SCALE, 3.3 * SCALE, 0.9 * SCALE);
+        const gMat = new BABYLON.StandardMaterial("gMat", scene);
+        gMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.2);
+        gripper.material = gMat;
+
+      } else if (item.type === "camera") {
+        const body = BABYLON.MeshBuilder.CreateBox("camBody", {
+          width: 1.6 * SCALE,
+          height: 0.9 * SCALE,
+          depth: 0.9 * SCALE
+        }, scene);
+        body.parent = root;
+        const bMat = new BABYLON.StandardMaterial("camMat", scene);
+        bMat.diffuseColor = new BABYLON.Color3(0.2, 0.22, 0.26);
+        body.material = bMat;
+
+        const lens = BABYLON.MeshBuilder.CreateCylinder("camLens", {
+          diameter: 0.7 * SCALE,
+          height: 0.6 * SCALE,
+          tessellation: 24
+        }, scene);
+        lens.parent = root;
+        lens.position.z = 0.7 * SCALE;
+        const lMat = new BABYLON.StandardMaterial("camLensMat", scene);
+        lMat.diffuseColor = new BABYLON.Color3(0.1, 0.5, 1);
+        lMat.emissiveColor = new BABYLON.Color3(0.1, 0.6, 1);
+        lens.material = lMat;
+
+        const mount = BABYLON.MeshBuilder.CreateBox("camMount", {
+          width: 0.8 * SCALE,
+          height: 0.2 * SCALE,
+          depth: 1.2 * SCALE
+        }, scene);
+        mount.parent = root;
+        mount.position.y = -0.5 * SCALE;
+        const mMat = new BABYLON.StandardMaterial("camMountMat", scene);
+        mMat.diffuseColor = new BABYLON.Color3(0.25, 0.25, 0.3);
+        mount.material = mMat;
+
+      } else if (item.type === "rfid") {
+        const body = BABYLON.MeshBuilder.CreateBox("rfidBody", {
+          width: 1.9 * SCALE,
+          height: 0.4 * SCALE,
+          depth: 1.5 * SCALE
+        }, scene);
+        body.parent = root;
+        const bMat = new BABYLON.StandardMaterial("rfidMat", scene);
+        bMat.diffuseColor = col;
+        bMat.specularColor = new BABYLON.Color3(0.85, 0.85, 0.95);
+        body.material = bMat;
+
+        const frame = BABYLON.MeshBuilder.CreateTorus("rfidFrame", {
+          diameter: 1.3 * SCALE,
+          thickness: 0.08 * SCALE,
+          tessellation: 32
+        }, scene);
+        frame.parent = root;
+        frame.rotation.x = Math.PI / 2;
+        frame.position.y = 0.25 * SCALE;
+        const fMat = new BABYLON.StandardMaterial("rfidFrameMat", scene);
+        fMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+        frame.material = fMat;
+      }
+    }
+
+    // ===== בחירה =====
+    function setupPicking(scene) {
+      scene.onPointerObservable.add((pointerInfo) => {
+        if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
+          const pick = pointerInfo.pickInfo;
+          if (!pick || !pick.hit || !pick.pickedMesh) return;
+
+          let node = pick.pickedMesh;
+          while (node && (!node.metadata || node.metadata.type !== "itemRoot")) {
+            node = node.parent;
+          }
+          if (!node || !node.metadata) return;
+
+          toggleItem(node);
+        }
+      });
+
+      checkBtn.addEventListener("click", checkSolution);
+    }
+
+    // ===== אנימציית מעבר =====
+    function moveNodeTo(node, newPos) {
+      const from = node.position.clone();
+      const to = newPos.clone();
+
+      const anim = new BABYLON.Animation(
+        "moveAnim_" + node.name,
+        "position",
+        60,
+        BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+        BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+      );
+
+      const keys = [
+        { frame: 0, value: from },
+        { frame: 30, value: to }
+      ];
+      anim.setKeys(keys);
+
+      node.animations = [];
+      node.animations.push(anim);
+      node.getScene().beginAnimation(node, 0, 30, false);
+    }
+
+    // ===== לוגיקה של הוספה / הוצאה =====
+    function toggleItem(root) {
+      const idx = root.metadata.index;
+      const item = ITEMS[idx];
+
+      if (!root.metadata.selected) {
+        // הוספה
+        root.metadata.selected = true;
+        currentWeight += item.weight;
+        currentValue  += item.value;
+
+        // מוצאים סלוט פנוי
+        let freeIndex = null;
+        for (let i = 0; i < backpackSlots.length; i++) {
+          let taken = false;
+          for (const n of itemRoots) {
+            if (n.metadata.selected && n.metadata.slotIndex === i) {
+              taken = true;
+              break;
+            }
+          }
+          if (!taken) {
+            freeIndex = i;
+            break;
+          }
+        }
+
+        if (freeIndex === null) {
+          // אין מקום
+          root.metadata.selected = false;
+          currentWeight -= item.weight;
+          currentValue  -= item.value;
+          msgEl.textContent = "הארגז מלא פיזית – אין מקום לעוד רכיבים.";
+          msgEl.style.color = "#e53935";
+        } else {
+          root.metadata.slotIndex = freeIndex;
+          const target = backpackSlots[freeIndex];
+          moveNodeTo(root, target);
+        }
+
+      } else {
+        // הוצאה
+        root.metadata.selected = false;
+        currentWeight -= item.weight;
+        currentValue  -= item.value;
+        const base = root.metadata.basePosition.clone();
+        root.metadata.slotIndex = null;
+        moveNodeTo(root, base);
+      }
+
+      updateHUD();
+    }
+
+    function updateHUD() {
+      weightEl.textContent = "משקל נוכחי: " + currentWeight;
+      valueEl.textContent  = "ערך נוכחי: " + currentValue;
+
+      if (currentWeight > CAPACITY) {
+        weightEl.style.color = "#e53935";
+        msgEl.textContent = "❗ חרגת מהקיבולת – צריך להוציא משהו מהארגז";
+        msgEl.style.color = "#e53935";
+      } else {
+        weightEl.style.color = "#000";
+        msgEl.textContent = "לחץ על מוצרים כדי להוסיף / להוציא. נסה להגיע לערך הכי גבוה בלי לחרוג מהקיבולת.";
+        msgEl.style.color = "#000";
+      }
+    }
+
+    // ===== בדיקת פתרון =====
+    function checkSolution() {
+      if (currentWeight > CAPACITY) {
+        msgEl.textContent = "❌ המשקל גבוה מדי – אין פתרון חוקי כזה.";
+        msgEl.style.color = "#e53935";
+        return;
+      }
+
+      if (currentValue === bestPossibleValue) {
+        msgEl.textContent = "🎉 אופטימלי! בחרת סט ציוד מושלם לארגז.";
+        msgEl.style.color = "#2e7d32";
+      } else {
+        msgEl.textContent = "ℹ אפשר יותר טוב – הערך המקסימלי האפשרי הוא " + bestPossibleValue;
+        msgEl.style.color = "#f9a825";
+      }
+    }
+
+    // ===== התחלה =====
+    bestPossibleValue = computeOptimalValue();
+    scene = createScene();
+
+    engine.runRenderLoop(() => {
+      scene.render();
+    });
+
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>
