@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>משחק הקצאת שליחים - האלגוריתם ההונגרי</title>
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Heebo', sans-serif; overflow: hidden; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    #renderCanvas { width: 100%; height: 100vh; display: block; outline: none; }
+    .ui-container { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 100; }
+    .header { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: rgba(255,255,255,0.97); backdrop-filter: blur(20px); border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); pointer-events: auto; }
+    .logo { display: flex; align-items: center; gap: 8px; }
+    .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, #FF6B6B, #FF8E53); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 12px rgba(255,107,107,0.3); }
+    .logo-text h1 { font-size: 15px; font-weight: 800; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo-text p { font-size: 10px; color: #888; font-weight: 500; }
+    .stats { display: flex; gap: 8px; }
+    .stat-box { text-align: center; padding: 6px 14px; background: linear-gradient(135deg, #f8f9ff, #fff); border-radius: 10px; border: 1px solid rgba(102,126,234,0.15); }
+    .stat-value { font-size: 18px; font-weight: 900; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-label { font-size: 9px; color: #888; font-weight: 600; }
+    .btn { padding: 8px 14px; border: none; border-radius: 8px; font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; }
+    .btn-reset { background: linear-gradient(135deg, #FF6B6B, #FF8E53); color: white; }
+    .btn-solve { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .btn-start { background: linear-gradient(135deg, #4CAF50, #66BB6A); color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { transform: translateY(-2px); }
+    .side-panel { position: absolute; top: 75px; right: 12px; width: 240px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; max-height: calc(100vh - 90px); overflow-y: auto; }
+    .panel-card { background: rgba(255,255,255,0.97); backdrop-filter: blur(20px); border-radius: 14px; padding: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+    .panel-title { font-size: 13px; font-weight: 800; color: #333; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .courier-list, .order-list { display: flex; flex-direction: column; gap: 6px; }
+    .courier-item, .order-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: linear-gradient(135deg, #f8f9ff, #fff); border-radius: 8px; border: 2px solid transparent; transition: all 0.3s ease; font-size: 12px; }
+    .courier-item.selected { border-color: #FFD700; background: linear-gradient(135deg, #fffef0, #fff9e6); box-shadow: 0 3px 12px rgba(255,215,0,0.2); }
+    .courier-item.assigned, .order-item.assigned { border-color: #4CAF50; background: linear-gradient(135deg, #f0fff4, #e8f5e9); }
+    .item-info { display: flex; align-items: center; gap: 6px; }
+    .color-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .item-name { font-weight: 700; font-size: 12px; color: #333; }
+    .badge { padding: 2px 6px; background: linear-gradient(135deg, #4CAF50, #66BB6A); color: white; border-radius: 12px; font-size: 9px; font-weight: 700; }
+    .order-route { font-size: 9px; color: #888; margin-top: 2px; }
+    .progress-bar { height: 6px; background: #e0e0e0; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 6px; transition: width 0.5s ease; }
+    .timer-display { display: flex; justify-content: center; gap: 15px; margin-top: 10px; }
+    .timer-box { text-align: center; }
+    .timer-value { font-size: 22px; font-weight: 900; color: #667eea; }
+    .timer-label { font-size: 9px; color: #888; }
+    .instructions-card { background: linear-gradient(135deg, #667eea, #764ba2) !important; color: white; }
+    .instructions-card .panel-title { color: white; }
+    .instruction-item { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-bottom: 4px; }
+    .instruction-num { width: 18px; height: 18px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 10px; }
+    .status-message { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 25px; background: rgba(255,255,255,0.97); backdrop-filter: blur(20px); border-radius: 30px; box-shadow: 0 6px 24px rgba(0,0,0,0.1); font-size: 13px; font-weight: 700; color: #333; pointer-events: auto; }
+    .legend { position: absolute; bottom: 20px; right: 12px; background: rgba(255,255,255,0.97); padding: 10px 12px; border-radius: 12px; pointer-events: auto; }
+    .legend-title { font-size: 11px; font-weight: 800; margin-bottom: 6px; color: #333; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #666; margin-bottom: 3px; }
+    .legend-line { width: 20px; height: 3px; border-radius: 2px; }
+    .legend-line.dashed { background: repeating-linear-gradient(90deg, #888 0px, #888 4px, transparent 4px, transparent 8px); }
+    .legend-line.solid { background: #667eea; }
+    .celebration-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: none; align-items: center; justify-content: center; z-index: 200; pointer-events: auto; }
+    .celebration-overlay.show { display: flex; }
+    .celebration-card { background: white; padding: 30px 40px; border-radius: 20px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.2); animation: celebrationPop 0.5s ease; max-width: 420px; }
+    @keyframes celebrationPop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .celebration-icon { font-size: 50px; margin-bottom: 10px; }
+    .celebration-title { font-size: 24px; font-weight: 900; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 5px; }
+    .celebration-subtitle { font-size: 13px; color: #666; margin-bottom: 15px; }
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+    .result-box { padding: 12px; border-radius: 12px; text-align: center; }
+    .result-box.user { background: linear-gradient(135deg, #fff3e0, #ffe0b2); border: 2px solid #FFB74D; }
+    .result-box.algo { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border: 2px solid #66BB6A; }
+    .result-label { font-size: 10px; font-weight: 700; color: #666; margin-bottom: 3px; }
+    .result-value { font-size: 20px; font-weight: 900; }
+    .result-box.user .result-value { color: #FF9800; }
+    .result-box.algo .result-value { color: #4CAF50; }
+    .result-time { font-size: 11px; color: #888; margin-top: 2px; }
+    .comparison-text { margin-bottom: 15px; font-size: 13px; color: #666; padding: 10px; background: #f5f5f5; border-radius: 10px; }
+    .play-again-btn { padding: 12px 35px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 30px; font-family: 'Heebo', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+  
+  <div class="ui-container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">🏍️</div>
+        <div class="logo-text">
+          <h1>משחק הקצאת שליחים</h1>
+          <p>האלגוריתם ההונגרי</p>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat-box">
+          <div class="stat-value" id="assigned-count">0/4</div>
+          <div class="stat-label">הוקצו</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="total-distance">0</div>
+          <div class="stat-label">מרחק כולל</div>
+        </div>
+      </div>
+      <button class="btn btn-start" id="btn-animate" onclick="startAnimation()" disabled>▶ שלח משלוחים</button>
+      <button class="btn btn-solve" id="btn-solve" onclick="solveWithAlgorithm()">🧠 פתרון אוטומטי</button>
+      <button class="btn btn-reset" onclick="resetGame()">🔄 איפוס</button>
+    </div>
+    
+    <div class="side-panel">
+      <div class="panel-card">
+        <div class="panel-title">🏍️ שליחים</div>
+        <div class="courier-list" id="courier-list"></div>
+      </div>
+      
+      <div class="panel-card">
+        <div class="panel-title">📦 הזמנות (לקוח ← מסעדה)</div>
+        <div class="order-list" id="order-list"></div>
+      </div>
+      
+      <div class="panel-card">
+        <div class="panel-title">⏱️ זמנים</div>
+        <div class="timer-display">
+          <div class="timer-box">
+            <div class="timer-value" id="user-timer">00:00</div>
+            <div class="timer-label">הזמן שלך</div>
+          </div>
+          <div class="timer-box">
+            <div class="timer-value" id="algo-timer">-</div>
+            <div class="timer-label">האלגוריתם</div>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+      
+      <div class="panel-card instructions-card">
+        <div class="panel-title">💡 הוראות</div>
+        <div class="instruction-item"><span class="instruction-num">1</span><span>לחץ על שליח (אופנוע)</span></div>
+        <div class="instruction-item"><span class="instruction-num">2</span><span>ראה מרחק לכל לקוח</span></div>
+        <div class="instruction-item"><span class="instruction-num">3</span><span>לחץ על מסעדה להקצאה</span></div>
+        <div class="instruction-item"><span class="instruction-num">4</span><span>שלח והשווה לאלגוריתם!</span></div>
+      </div>
+    </div>
+    
+    <div class="legend">
+      <div class="legend-title">מקרא</div>
+      <div class="legend-item"><div class="legend-line dashed"></div><span>הזמנה (מסעדה → לקוח)</span></div>
+      <div class="legend-item"><div class="legend-line solid"></div><span>מסלול שליח</span></div>
+    </div>
+    
+    <div class="status-message" id="status-message">🏍️ לחץ על שליח כדי לראות מרחקים ללקוחות</div>
+  </div>
+  
+  <div class="celebration-overlay" id="celebration">
+    <div class="celebration-card">
+      <div class="celebration-icon">🎉</div>
+      <div class="celebration-title" id="celeb-title">סיימת!</div>
+      <div class="celebration-subtitle">השוואת הפתרון שלך מול האלגוריתם</div>
+      <div class="results-grid">
+        <div class="result-box user">
+          <div class="result-label">🧑 הפתרון שלך</div>
+          <div class="result-value" id="final-user-dist">0</div>
+          <div class="result-time" id="final-user-time">זמן: 00:00</div>
+        </div>
+        <div class="result-box algo">
+          <div class="result-label">🤖 האלגוריתם</div>
+          <div class="result-value" id="final-algo-dist">0</div>
+          <div class="result-time" id="final-algo-time">זמן: 0.00ms</div>
+        </div>
+      </div>
+      <div class="comparison-text" id="comparison-text"></div>
+      <button class="play-again-btn" onclick="resetGame()">🔄 שחק שוב</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, { antialias: true });
+    
+    // Data - כל הזמנה מחברת מסעדה ללקוח
+    const orders = [
+      { id: 1, restX: 0, restZ: -28, custX: 28, custZ: -25, color: '#FF6B6B', restName: 'פיצה רומא', custName: 'משפחת כהן' },
+      { id: 2, restX: -28, restZ: 0, custX: 22, custZ: 28, color: '#4ECDC4', restName: 'סושי טוקיו', custName: 'משפחת לוי' },
+      { id: 3, restX: 28, restZ: -5, custX: -22, custZ: 30, color: '#9B59B6', restName: 'בורגר האוס', custName: 'משפחת אברהם' },
+      { id: 4, restX: 5, restZ: 28, custX: 32, custZ: 10, color: '#F39C12', restName: 'פלאפל הזהב', custName: 'משפחת דוד' }
+    ];
+    
+    const couriers = [
+      { id: 1, x: -24, z: -24, color: '#2ECC71', name: 'יוסי' },
+      { id: 2, x: 24, z: -22, color: '#3498DB', name: 'מיכל' },
+      { id: 3, x: -22, z: 24, color: '#E74C3C', name: 'דני' },
+      { id: 4, x: 26, z: 20, color: '#1ABC9C', name: 'שרה' }
+    ];
+    
+    let gameState = {
+      selectedCourier: null,
+      assignments: {},
+      totalDistance: 0,
+      startTime: null,
+      elapsedSeconds: 0,
+      algoTimeMs: null,
+      isAnimating: false,
+      isComplete: false
+    };
+    
+    let scene, advancedTexture, courierMeshes = [], orderLines = [], assignmentLines = {}, distanceLabels = [];
+    let timerInterval;
+    
+    function createScene() {
+      scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.95, 0.96, 0.98, 1);
+      
+      advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+      
+      const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2, Math.PI/3.2, 95, BABYLON.Vector3.Zero(), scene);
+      camera.attachControl(canvas, true);
+      camera.lowerRadiusLimit = 50;
+      camera.upperRadiusLimit = 140;
+      camera.wheelPrecision = 12;
+      
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.8;
+      
+      const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-0.5, -1, 0.3), scene);
+      sun.position = new BABYLON.Vector3(50, 70, -50);
+      sun.intensity = 0.9;
+      
+      const shadowGen = new BABYLON.ShadowGenerator(2048, sun);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 32;
+      
+      // Ground
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 160, height: 160 }, scene);
+      const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+      groundMat.diffuseColor = new BABYLON.Color3(0.92, 0.94, 0.96);
+      ground.material = groundMat;
+      ground.receiveShadows = true;
+      
+      createRoads(scene);
+      createEnvironment(scene, shadowGen);
+      
+      // Create order connection lines (dashed) - מסעדה ← לקוח
+      orders.forEach(order => {
+        createOrderLine(scene, order);
+        createRestaurant(scene, order, shadowGen);
+        createCustomerHouse(scene, order, shadowGen);
+      });
+      
+      // Create couriers
+      couriers.forEach(c => {
+        const mesh = createMotorcycle(scene, c, shadowGen);
+        courierMeshes.push(mesh);
+      });
+      
+      // Click handler
+      scene.onPointerDown = (evt, pickResult) => {
+        if (gameState.isAnimating || gameState.isComplete) return;
+        if (pickResult.hit) {
+          let parent = pickResult.pickedMesh;
+          while (parent && !parent.courierId && !parent.orderId) {
+            parent = parent.parent;
+          }
+          if (parent?.courierId) {
+            selectCourier(parent.courierId);
+          } else if (parent?.orderId && gameState.selectedCourier) {
+            assignOrder(parent.orderId);
+          }
+        }
+      };
+      
+      return scene;
+    }
+    
+    function createRoads(scene) {
+      const roadMat = new BABYLON.StandardMaterial("roadMat", scene);
+      roadMat.diffuseColor = new BABYLON.Color3(0.4, 0.42, 0.46);
+      
+      const lineMat = new BABYLON.StandardMaterial("lineMat", scene);
+      lineMat.diffuseColor = new BABYLON.Color3(1, 0.95, 0.4);
+      lineMat.emissiveColor = new BABYLON.Color3(0.15, 0.14, 0.05);
+      
+      for (let i = -40; i <= 40; i += 20) {
+        const roadH = BABYLON.MeshBuilder.CreateBox("roadH" + i, { width: 160, height: 0.05, depth: 12 }, scene);
+        roadH.position.set(0, 0.025, i);
+        roadH.material = roadMat;
+        
+        const roadV = BABYLON.MeshBuilder.CreateBox("roadV" + i, { width: 12, height: 0.05, depth: 160 }, scene);
+        roadV.position.set(i, 0.025, 0);
+        roadV.material = roadMat;
+        
+        for (let j = -75; j <= 75; j += 6) {
+          const lineH = BABYLON.MeshBuilder.CreateBox("lineH", { width: 3.5, height: 0.06, depth: 0.25 }, scene);
+          lineH.position.set(j, 0.06, i);
+          lineH.material = lineMat;
+          
+          const lineV = BABYLON.MeshBuilder.CreateBox("lineV", { width: 0.25, height: 0.06, depth: 3.5 }, scene);
+          lineV.position.set(i, 0.06, j);
+          lineV.material = lineMat;
+        }
+      }
+    }
+    
+    function createEnvironment(scene, shadowGen) {
+      const treePositions = [[-45,-45],[45,-45],[-45,45],[45,45],[-60,0],[60,0],[0,-60],[0,60]];
+      treePositions.forEach(pos => {
+        const trunk = BABYLON.MeshBuilder.CreateCylinder("trunk", { height: 3, diameter: 0.8 }, scene);
+        trunk.position.set(pos[0], 1.5, pos[1]);
+        const trunkMat = new BABYLON.StandardMaterial("trunkMat", scene);
+        trunkMat.diffuseColor = new BABYLON.Color3(0.5, 0.35, 0.2);
+        trunk.material = trunkMat;
+        shadowGen.addShadowCaster(trunk);
+        
+        const leaves = BABYLON.MeshBuilder.CreateSphere("leaves", { diameter: 5 }, scene);
+        leaves.position.set(pos[0], 5, pos[1]);
+        const leavesMat = new BABYLON.StandardMaterial("leavesMat", scene);
+        leavesMat.diffuseColor = new BABYLON.Color3(0.3, 0.7, 0.35);
+        leaves.material = leavesMat;
+        shadowGen.addShadowCaster(leaves);
+      });
+    }
+    
+    // קו מקווקו בין מסעדה ללקוח - מראה את ההזמנה
+    function createOrderLine(scene, order) {
+      const color = BABYLON.Color3.FromHexString(order.color);
+      const points = [];
+      const segments = 20;
+      
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const x = order.restX + (order.custX - order.restX) * t;
+        const z = order.restZ + (order.custZ - order.restZ) * t;
+        const y = 0.5 + Math.sin(t * Math.PI) * 3; // Arc
+        points.push(new BABYLON.Vector3(x, y, z));
+      }
+      
+      // Create dashed line effect with small spheres
+      for (let i = 0; i < segments; i += 2) {
+        const sphere = BABYLON.MeshBuilder.CreateSphere("orderDot" + order.id + "_" + i, { diameter: 0.4 }, scene);
+        sphere.position = points[i];
+        const mat = new BABYLON.StandardMaterial("dotMat", scene);
+        mat.diffuseColor = color;
+        mat.emissiveColor = color.scale(0.3);
+        mat.alpha = 0.7;
+        sphere.material = mat;
+        orderLines.push(sphere);
+      }
+      
+      // Arrow at customer end
+      const arrow = BABYLON.MeshBuilder.CreateCylinder("arrow" + order.id, { diameterTop: 0, diameterBottom: 0.8, height: 1.2 }, scene);
+      arrow.position = new BABYLON.Vector3(order.custX, 1, order.custZ);
+      const arrowMat = new BABYLON.StandardMaterial("arrowMat", scene);
+      arrowMat.diffuseColor = color;
+      arrowMat.emissiveColor = color.scale(0.4);
+      arrow.material = arrowMat;
+      orderLines.push(arrow);
+    }
+    
+    function createMotorcycle(scene, courier, shadowGen) {
+      const parent = new BABYLON.TransformNode("courier_" + courier.id, scene);
+      parent.position.set(courier.x, 0, courier.z);
+      parent.courierId = courier.id;
+      parent.originalPosition = new BABYLON.Vector3(courier.x, 0, courier.z);
+      
+      const color = BABYLON.Color3.FromHexString(courier.color);
+      
+      const bodyMat = new BABYLON.StandardMaterial("bodyMat" + courier.id, scene);
+      bodyMat.diffuseColor = color;
+      bodyMat.specularPower = 64;
+      
+      const body = BABYLON.MeshBuilder.CreateBox("body", { width: 1.1, height: 0.6, depth: 2.6 }, scene);
+      body.position.y = 0.8;
+      body.parent = parent;
+      body.material = bodyMat;
+      shadowGen.addShadowCaster(body);
+      
+      const tank = BABYLON.MeshBuilder.CreateCylinder("tank", { diameter: 0.7, height: 1.2 }, scene);
+      tank.rotation.x = Math.PI / 2;
+      tank.position.set(0, 1, 0.4);
+      tank.parent = parent;
+      tank.material = bodyMat;
+      
+      const seatMat = new BABYLON.StandardMaterial("seatMat", scene);
+      seatMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+      
+      const seat = BABYLON.MeshBuilder.CreateBox("seat", { width: 0.7, height: 0.25, depth: 1 }, scene);
+      seat.position.set(0, 1.2, -0.3);
+      seat.parent = parent;
+      seat.material = seatMat;
+      
+      const wheelMat = new BABYLON.StandardMaterial("wheelMat", scene);
+      wheelMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+      
+      const createWheel = (zPos) => {
+        const wheel = BABYLON.MeshBuilder.CreateTorus("wheel", { diameter: 1, thickness: 0.3, tessellation: 32 }, scene);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(0, 0.5, zPos);
+        wheel.parent = parent;
+        wheel.material = wheelMat;
+        shadowGen.addShadowCaster(wheel);
+        return wheel;
+      };
+      
+      const frontWheel = createWheel(1.1);
+      const backWheel = createWheel(-0.9);
+      
+      const boxMat = new BABYLON.StandardMaterial("boxMat", scene);
+      boxMat.diffuseColor = new BABYLON.Color3(0.98, 0.98, 0.98);
+      
+      const deliveryBox = BABYLON.MeshBuilder.CreateBox("deliveryBox", { width: 1.4, height: 1.1, depth: 1.4 }, scene);
+      deliveryBox.position.set(0, 1.7, -0.9);
+      deliveryBox.parent = parent;
+      deliveryBox.material = boxMat;
+      shadowGen.addShadowCaster(deliveryBox);
+      
+      // Selection ring
+      const ring = BABYLON.MeshBuilder.CreateTorus("ring", { diameter: 4.5, thickness: 0.25, tessellation: 64 }, scene);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.15;
+      ring.parent = parent;
+      const ringMat = new BABYLON.StandardMaterial("ringMat", scene);
+      ringMat.emissiveColor = color;
+      ringMat.alpha = 0;
+      ring.material = ringMat;
+      parent.ringMat = ringMat;
+      parent.frontWheel = frontWheel;
+      parent.backWheel = backWheel;
+      
+      // Courier name label
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.width = "75px";
+      rect.height = "26px";
+      rect.cornerRadius = 13;
+      rect.thickness = 0;
+      rect.background = courier.color;
+      advancedTexture.addControl(rect);
+      rect.linkWithMesh(parent);
+      rect.linkOffsetY = -65;
+      
+      const text = new BABYLON.GUI.TextBlock();
+      text.text = "🏍️ " + courier.name;
+      text.color = "white";
+      text.fontSize = 12;
+      text.fontWeight = "bold";
+      rect.addControl(text);
+      
+      // Animation
+      let time = Math.random() * Math.PI * 2;
+      scene.registerBeforeRender(() => {
+        if (!gameState.isAnimating) {
+          time += 0.04;
+          parent.position.y = Math.sin(time * 2) * 0.05;
+        }
+        frontWheel.rotation.x += 0.03;
+        backWheel.rotation.x += 0.03;
+      });
+      
+      return parent;
+    }
+    
+    function createRestaurant(scene, order, shadowGen) {
+      const parent = new BABYLON.TransformNode("rest_" + order.id, scene);
+      parent.position.set(order.restX, 0, order.restZ);
+      parent.orderId = order.id;
+      
+      const color = BABYLON.Color3.FromHexString(order.color);
+      
+      const baseMat = new BABYLON.StandardMaterial("baseMat", scene);
+      baseMat.diffuseColor = color.scale(0.9);
+      
+      const base = BABYLON.MeshBuilder.CreateBox("base", { width: 5, height: 6, depth: 5 }, scene);
+      base.position.y = 3;
+      base.parent = parent;
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+      
+      const roofMat = new BABYLON.StandardMaterial("roofMat", scene);
+      roofMat.diffuseColor = new BABYLON.Color3(0.7, 0.25, 0.25);
+      
+      const roof = BABYLON.MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: 7, height: 3, tessellation: 4 }, scene);
+      roof.position.y = 7.5;
+      roof.rotation.y = Math.PI / 4;
+      roof.parent = parent;
+      roof.material = roofMat;
+      shadowGen.addShadowCaster(roof);
+      
+      // Restaurant name label
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.width = "100px";
+      rect.height = "28px";
+      rect.cornerRadius = 14;
+      rect.thickness = 2;
+      rect.color = "white";
+      rect.background = order.color;
+      advancedTexture.addControl(rect);
+      rect.linkWithMesh(parent);
+      rect.linkOffsetY = -120;
+      
+      const text = new BABYLON.GUI.TextBlock();
+      text.text = "🍽️ " + order.restName;
+      text.color = "white";
+      text.fontSize = 11;
+      text.fontWeight = "bold";
+      rect.addControl(text);
+      
+      // Floating icon
+      const icon = BABYLON.MeshBuilder.CreateSphere("icon", { diameter: 1.8 }, scene);
+      icon.position.y = 11;
+      icon.parent = parent;
+      const iconMat = new BABYLON.StandardMaterial("iconMat", scene);
+      iconMat.diffuseColor = color;
+      iconMat.emissiveColor = color.scale(0.5);
+      icon.material = iconMat;
+      
+      let time = Math.random() * Math.PI * 2;
+      scene.registerBeforeRender(() => {
+        time += 0.025;
+        icon.position.y = 11 + Math.sin(time) * 0.4;
+        icon.rotation.y += 0.01;
+      });
+      
+      return parent;
+    }
+    
+    function createCustomerHouse(scene, order, shadowGen) {
+      const parent = new BABYLON.TransformNode("house_" + order.id, scene);
+      parent.position.set(order.custX, 0, order.custZ);
+      
+      const color = BABYLON.Color3.FromHexString(order.color);
+      
+      const baseMat = new BABYLON.StandardMaterial("houseBaseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.95, 0.92, 0.88);
+      
+      const base = BABYLON.MeshBuilder.CreateBox("houseBase", { width: 4.5, height: 4.5, depth: 4.5 }, scene);
+      base.position.y = 2.25;
+      base.parent = parent;
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+      
+      const roofMat = new BABYLON.StandardMaterial("houseRoofMat", scene);
+      roofMat.diffuseColor = new BABYLON.Color3(0.55, 0.35, 0.22);
+      
+      const roof = BABYLON.MeshBuilder.CreateCylinder("houseRoof", { diameterTop: 0, diameterBottom: 6.5, height: 2.5, tessellation: 4 }, scene);
+      roof.position.y = 5.75;
+      roof.rotation.y = Math.PI / 4;
+      roof.parent = parent;
+      roof.material = roofMat;
+      shadowGen.addShadowCaster(roof);
+      
+      const doorMat = new BABYLON.StandardMaterial("doorMat", scene);
+      doorMat.diffuseColor = color.scale(0.7);
+      
+      const door = BABYLON.MeshBuilder.CreateBox("door", { width: 1.2, height: 2.2, depth: 0.1 }, scene);
+      door.position.set(0, 1.1, 2.3);
+      door.parent = parent;
+      door.material = doorMat;
+      
+      // Customer label with order info
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.width = "115px";
+      rect.height = "40px";
+      rect.cornerRadius = 10;
+      rect.thickness = 2;
+      rect.color = order.color;
+      rect.background = "white";
+      advancedTexture.addControl(rect);
+      rect.linkWithMesh(parent);
+      rect.linkOffsetY = -95;
+      
+      const stack = new BABYLON.GUI.StackPanel();
+      rect.addControl(stack);
+      
+      const custText = new BABYLON.GUI.TextBlock();
+      custText.text = "🏠 " + order.custName;
+      custText.color = "#333";
+      custText.fontSize = 10;
+      custText.fontWeight = "bold";
+      custText.height = "18px";
+      stack.addControl(custText);
+      
+      const orderText = new BABYLON.GUI.TextBlock();
+      orderText.text = "← " + order.restName;
+      orderText.color = order.color;
+      orderText.fontSize = 9;
+      orderText.height = "16px";
+      stack.addControl(orderText);
+      
+      parent.distanceLabel = null;
+      
+      // Marker
+      const marker = BABYLON.MeshBuilder.CreateCylinder("marker", { diameterTop: 0.4, diameterBottom: 1.4, height: 2.5 }, scene);
+      marker.position.y = 9;
+      marker.parent = parent;
+      const markerMat = new BABYLON.StandardMaterial("markerMat", scene);
+      markerMat.diffuseColor = color;
+      markerMat.emissiveColor = color.scale(0.4);
+      marker.material = markerMat;
+      
+      let time = Math.random() * Math.PI * 2;
+      scene.registerBeforeRender(() => {
+        time += 0.03;
+        marker.position.y = 9 + Math.sin(time) * 0.35;
+      });
+      
+      return parent;
+    }
+    
+    function selectCourier(id) {
+      if (gameState.selectedCourier === id) {
+        gameState.selectedCourier = null;
+      } else {
+        gameState.selectedCourier = id;
+        if (!gameState.startTime) {
+          gameState.startTime = Date.now();
+          startTimer();
+        }
+      }
+      updateVisuals();
+      updateDistanceLabels();
+      updateUI();
+    }
+    
+    function assignOrder(orderId) {
+      if (!gameState.selectedCourier) return;
+      if (Object.values(gameState.assignments).includes(orderId)) return;
+      
+      gameState.assignments[gameState.selectedCourier] = orderId;
+      gameState.selectedCourier = null;
+      
+      calculateTotalDistance();
+      updateVisuals();
+      updateDistanceLabels();
+      updateUI();
+      
+      if (Object.keys(gameState.assignments).length === couriers.length) {
+        document.getElementById('btn-animate').disabled = false;
+      }
+    }
+    
+    // הצג מרחק ליד כל לקוח כשבוחרים שליח
+    function updateDistanceLabels() {
+      distanceLabels.forEach(label => label.dispose());
+      distanceLabels = [];
+      
+      if (!gameState.selectedCourier) return;
+      
+      const courier = couriers.find(c => c.id === gameState.selectedCourier);
+      if (!courier) return;
+      
+      orders.forEach(order => {
+        if (Object.values(gameState.assignments).includes(order.id)) return;
+        
+        // מרחק כולל: שליח → מסעדה → לקוח
+        const distToRest = Math.sqrt(Math.pow(order.restX - courier.x, 2) + Math.pow(order.restZ - courier.z, 2));
+        const distToCust = Math.sqrt(Math.pow(order.custX - order.restX, 2) + Math.pow(order.custZ - order.restZ, 2));
+        const totalDist = Math.round((distToRest + distToCust) * 10) / 10;
+        
+        // תווית ליד הלקוח
+        const houseNode = scene.getTransformNodeByName("house_" + order.id);
+        if (houseNode) {
+          const rect = new BABYLON.GUI.Rectangle();
+          rect.width = "65px";
+          rect.height = "24px";
+          rect.cornerRadius = 12;
+          rect.thickness = 0;
+          rect.background = "rgba(102, 126, 234, 0.95)";
+          advancedTexture.addControl(rect);
+          rect.linkWithMesh(houseNode);
+          rect.linkOffsetY = -145;
+          rect.linkOffsetX = 60;
+          
+          const text = new BABYLON.GUI.TextBlock();
+          text.text = "📏 " + totalDist;
+          text.color = "white";
+          text.fontSize = 11;
+          text.fontWeight = "bold";
+          rect.addControl(text);
+          
+          distanceLabels.push(rect);
+        }
+      });
+    }
+    
+    function calculateTotalDistance() {
+      let total = 0;
+      Object.entries(gameState.assignments).forEach(([courierId, orderId]) => {
+        const courier = couriers.find(c => c.id === parseInt(courierId));
+        const order = orders.find(o => o.id === orderId);
+        if (courier && order) {
+          total += Math.sqrt(Math.pow(order.restX - courier.x, 2) + Math.pow(order.restZ - courier.z, 2));
+          total += Math.sqrt(Math.pow(order.custX - order.restX, 2) + Math.pow(order.custZ - order.restZ, 2));
+        }
+      });
+      gameState.totalDistance = Math.round(total * 10) / 10;
+    }
+    
+    function updateVisuals() {
+      courierMeshes.forEach(mesh => {
+        const isSelected = mesh.courierId === gameState.selectedCourier;
+        if (mesh.ringMat) mesh.ringMat.alpha = isSelected ? 0.9 : 0;
+      });
+      
+      Object.values(assignmentLines).forEach(line => line.dispose());
+      assignmentLines = {};
+      
+      Object.entries(gameState.assignments).forEach(([courierId, orderId]) => {
+        const courier = couriers.find(c => c.id === parseInt(courierId));
+        const order = orders.find(o => o.id === orderId);
+        const courierMesh = courierMeshes.find(m => m.courierId === parseInt(courierId));
+        
+        if (courier && order && courierMesh) {
+          const startPos = courierMesh.position;
+          const points = [
+            new BABYLON.Vector3(startPos.x, 1.5, startPos.z),
+            new BABYLON.Vector3(order.restX, 1.5, order.restZ),
+            new BABYLON.Vector3(order.custX, 1.5, order.custZ)
+          ];
+          
+          const tube = BABYLON.MeshBuilder.CreateTube("line_" + courierId, {
+            path: points, radius: 0.3, tessellation: 12, cap: BABYLON.Mesh.CAP_ALL
+          }, scene);
+          
+          const tubeMat = new BABYLON.StandardMaterial("tubeMat_" + courierId, scene);
+          tubeMat.diffuseColor = BABYLON.Color3.FromHexString(courier.color);
+          tubeMat.emissiveColor = BABYLON.Color3.FromHexString(courier.color).scale(0.4);
+          tubeMat.alpha = 0.85;
+          tube.material = tubeMat;
+          
+          assignmentLines[courierId] = tube;
+        }
+      });
+    }
+    
+    function updateUI() {
+      // Couriers list
+      document.getElementById('courier-list').innerHTML = couriers.map(c => {
+        const isSelected = gameState.selectedCourier === c.id;
+        const isAssigned = gameState.assignments[c.id];
+        const assignedOrder = orders.find(o => o.id === isAssigned);
+        let classes = 'courier-item';
+        if (isSelected) classes += ' selected';
+        if (isAssigned) classes += ' assigned';
+        return `<div class="${classes}">
+          <div class="item-info">
+            <div class="color-dot" style="background:${c.color}"></div>
+            <span class="item-name">${c.name}</span>
+          </div>
+          ${isAssigned ? `<span class="badge">→ ${assignedOrder?.custName}</span>` : ''}
+        </div>`;
+      }).join('');
+      
+      // Orders list - showing restaurant → customer
+      document.getElementById('order-list').innerHTML = orders.map(o => {
+        const assignedEntry = Object.entries(gameState.assignments).find(([_, orderId]) => orderId === o.id);
+        const assignedCourier = assignedEntry ? couriers.find(c => c.id === parseInt(assignedEntry[0])) : null;
+        return `<div class="order-item ${assignedCourier ? 'assigned' : ''}">
+          <div>
+            <div class="item-info">
+              <div class="color-dot" style="background:${o.color}"></div>
+              <span class="item-name">${o.custName}</span>
+            </div>
+            <div class="order-route">← ${o.restName}</div>
+          </div>
+          ${assignedCourier ? `<span class="badge">${assignedCourier.name}</span>` : ''}
+        </div>`;
+      }).join('');
+      
+      // Stats
+      document.getElementById('assigned-count').textContent = `${Object.keys(gameState.assignments).length}/4`;
+      document.getElementById('total-distance').textContent = gameState.totalDistance || 0;
+      
+      const progress = (Object.keys(gameState.assignments).length / couriers.length) * 100;
+      document.getElementById('progress-fill').style.width = `${progress}%`;
+      
+      // Status message
+      const statusMsg = document.getElementById('status-message');
+      if (gameState.isAnimating) {
+        statusMsg.textContent = '🚀 השליחים בדרך למסעדות וללקוחות...';
+      } else if (gameState.selectedCourier) {
+        const courier = couriers.find(c => c.id === gameState.selectedCourier);
+        statusMsg.textContent = `🎯 ${courier.name} נבחר - המספרים מראים מרחק כולל לכל לקוח (דרך המסעדה)`;
+      } else {
+        statusMsg.textContent = '🏍️ לחץ על שליח לראות מרחקים ללקוחות';
+      }
+    }
+    
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        if (gameState.startTime && !gameState.isComplete) {
+          gameState.elapsedSeconds = Math.floor((Date.now() - gameState.startTime) / 1000);
+          document.getElementById('user-timer').textContent = formatTime(gameState.elapsedSeconds);
+        }
+      }, 1000);
+    }
+    
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const secs = (seconds % 60).toString().padStart(2, '0');
+      return `${mins}:${secs}`;
+    }
+    
+    function startAnimation() {
+      if (Object.keys(gameState.assignments).length !== couriers.length) return;
+      
+      gameState.isAnimating = true;
+      gameState.isComplete = true;
+      document.getElementById('btn-animate').disabled = true;
+      document.getElementById('btn-solve').disabled = true;
+      updateUI();
+      
+      let completedAnimations = 0;
+      
+      Object.entries(gameState.assignments).forEach(([courierId, orderId]) => {
+        const courierMesh = courierMeshes.find(m => m.courierId === parseInt(courierId));
+        const order = orders.find(o => o.id === orderId);
+        
+        if (courierMesh && order) {
+          const timeline = gsap.timeline({
+            onComplete: () => {
+              completedAnimations++;
+              if (completedAnimations === couriers.length) {
+                setTimeout(showCelebration, 500);
+              }
+            }
+          });
+          
+          timeline.to(courierMesh.position, {
+            x: order.restX, z: order.restZ, duration: 2, ease: "power2.inOut",
+            onUpdate: () => {
+              const dx = order.restX - courierMesh.position.x;
+              const dz = order.restZ - courierMesh.position.z;
+              if (Math.abs(dx) > 0.1 || Math.abs(dz) > 0.1) {
+                courierMesh.rotation.y = Math.atan2(dx, dz);
+              }
+            }
+          });
+          
+          timeline.to({}, { duration: 0.5 });
+          
+          timeline.to(courierMesh.position, {
+            x: order.custX, z: order.custZ, duration: 2, ease: "power2.inOut",
+            onUpdate: () => {
+              const dx = order.custX - courierMesh.position.x;
+              const dz = order.custZ - courierMesh.position.z;
+              if (Math.abs(dx) > 0.1 || Math.abs(dz) > 0.1) {
+                courierMesh.rotation.y = Math.atan2(dx, dz);
+              }
+            }
+          });
+        }
+      });
+      
+      updateVisuals();
+    }
+    
+    // Hungarian Algorithm
+    function hungarianAlgorithm(costMatrix) {
+      const n = costMatrix.length;
+      const u = new Array(n + 1).fill(0);
+      const v = new Array(n + 1).fill(0);
+      const p = new Array(n + 1).fill(0);
+      const way = new Array(n + 1).fill(0);
+      
+      for (let i = 1; i <= n; i++) {
+        p[0] = i;
+        let j0 = 0;
+        const minv = new Array(n + 1).fill(Infinity);
+        const used = new Array(n + 1).fill(false);
+        
+        do {
+          used[j0] = true;
+          const i0 = p[j0];
+          let delta = Infinity, j1;
+          
+          for (let j = 1; j <= n; j++) {
+            if (!used[j]) {
+              const cur = costMatrix[i0 - 1][j - 1] - u[i0] - v[j];
+              if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+              if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+            }
+          }
+          
+          for (let j = 0; j <= n; j++) {
+            if (used[j]) { u[p[j]] += delta; v[j] -= delta; }
+            else { minv[j] -= delta; }
+          }
+          j0 = j1;
+        } while (p[j0] !== 0);
+        
+        do { const j1 = way[j0]; p[j0] = p[j1]; j0 = j1; } while (j0);
+      }
+      
+      const result = [];
+      for (let j = 1; j <= n; j++) {
+        if (p[j] !== 0) result[p[j] - 1] = j - 1;
+      }
+      return result;
+    }
+    
+    function calculateOptimalSolution() {
+      const startTime = performance.now();
+      
+      const costMatrix = couriers.map(courier => {
+        return orders.map(order => {
+          const distToRest = Math.sqrt(Math.pow(order.restX - courier.x, 2) + Math.pow(order.restZ - courier.z, 2));
+          const distToCust = Math.sqrt(Math.pow(order.custX - order.restX, 2) + Math.pow(order.custZ - order.restZ, 2));
+          return distToRest + distToCust;
+        });
+      });
+      
+      const assignment = hungarianAlgorithm(costMatrix);
+      
+      const endTime = performance.now();
+      const timeMs = (endTime - startTime).toFixed(2);
+      
+      let totalDistance = 0;
+      const optimalAssignments = {};
+      
+      assignment.forEach((orderIndex, courierIndex) => {
+        const courier = couriers[courierIndex];
+        const order = orders[orderIndex];
+        optimalAssignments[courier.id] = order.id;
+        totalDistance += costMatrix[courierIndex][orderIndex];
+      });
+      
+      return {
+        assignments: optimalAssignments,
+        distance: Math.round(totalDistance * 10) / 10,
+        timeMs: timeMs
+      };
+    }
+    
+    function solveWithAlgorithm() {
+      if (!gameState.startTime) {
+        gameState.startTime = Date.now();
+        startTimer();
+      }
+      
+      const optimal = calculateOptimalSolution();
+      gameState.algoTimeMs = optimal.timeMs;
+      
+      gameState.assignments = optimal.assignments;
+      gameState.totalDistance = optimal.distance;
+      gameState.selectedCourier = null;
+      
+      document.getElementById('algo-timer').textContent = optimal.timeMs + 'ms';
+      
+      updateVisuals();
+      updateDistanceLabels();
+      updateUI();
+      
+      document.getElementById('btn-animate').disabled = false;
+    }
+    
+    function showCelebration() {
+      const optimal = calculateOptimalSolution();
+      
+      document.getElementById('final-user-dist').textContent = gameState.totalDistance;
+      document.getElementById('final-user-time').textContent = `זמן: ${formatTime(gameState.elapsedSeconds)}`;
+      document.getElementById('final-algo-dist').textContent = optimal.distance;
+      document.getElementById('final-algo-time').textContent = `זמן: ${optimal.timeMs}ms`;
+      
+      const diff = gameState.totalDistance - optimal.distance;
+      const diffPercent = optimal.distance > 0 ? ((diff / optimal.distance) * 100).toFixed(1) : 0;
+      
+      let compText, title;
+      if (diff <= 0.1) {
+        title = '🏆 מושלם!';
+        compText = `מצאת את הפתרון האופטימלי! לך לקח ${formatTime(gameState.elapsedSeconds)}, לאלגוריתם לקח ${optimal.timeMs} מילישניות.`;
+      } else if (diffPercent < 10) {
+        title = '👏 יפה מאוד!';
+        compText = `הפתרון שלך גדול ב-${diffPercent}% מהאופטימלי. לך לקח ${formatTime(gameState.elapsedSeconds)}, לאלגוריתם לקח ${optimal.timeMs} מילישניות.`;
+      } else {
+        title = '✅ סיימת!';
+        compText = `הפתרון שלך גדול ב-${diffPercent}% מהאופטימלי. לך לקח ${formatTime(gameState.elapsedSeconds)}, לאלגוריתם לקח ${optimal.timeMs} מילישניות.`;
+      }
+      
+      document.getElementById('celeb-title').textContent = title;
+      document.getElementById('comparison-text').textContent = compText;
+      document.getElementById('celebration').classList.add('show');
+    }
+    
+    function resetGame() {
+      gameState = {
+        selectedCourier: null,
+        assignments: {},
+        totalDistance: 0,
+        startTime: null,
+        elapsedSeconds: 0,
+        algoTimeMs: null,
+        isAnimating: false,
+        isComplete: false
+      };
+      
+      if (timerInterval) clearInterval(timerInterval);
+      document.getElementById('user-timer').textContent = '00:00';
+      document.getElementById('algo-timer').textContent = '-';
+      
+      Object.values(assignmentLines).forEach(line => line.dispose());
+      assignmentLines = {};
+      
+      distanceLabels.forEach(label => label.dispose());
+      distanceLabels = [];
+      
+      courierMeshes.forEach(mesh => {
+        mesh.position = mesh.originalPosition.clone();
+        mesh.rotation.y = 0;
+      });
+      
+      document.getElementById('celebration').classList.remove('show');
+      document.getElementById('btn-animate').disabled = true;
+      document.getElementById('btn-solve').disabled = false;
+      
+      updateVisuals();
+      updateUI();
+    }
+    
+    createScene();
+    updateUI();
+    
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>
