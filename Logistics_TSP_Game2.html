@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>משחק מסלול לוגיסטי – TSP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #020617;
+      --accent: #3b82f6;
+      --accent-soft: #60a5fa;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --card: #02091a;
+      --border: #111827;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #020617 0, #000 70%);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 8px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 900px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-bottom: 70px;
+    }
+
+    .instructions-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .instructions-card ul {
+      margin: 4px 0 0;
+      padding-left: 18px;
+    }
+
+    .stats-row {
+      margin-top: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .stat-chip {
+      background: #020617;
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid #1e293b;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-value {
+      color: var(--accent-soft);
+      font-weight: 600;
+      direction: ltr;
+    }
+
+    .canvas-wrapper {
+      background: radial-gradient(circle at top, #020617 0, #000 70%);
+      border-radius: 18px;
+      padding: 8px;
+      border: 1px solid #020617;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85);
+    }
+
+    canvas {
+      width: 100%;
+      max-width: 900px;
+      border-radius: 14px;
+      border: 1px solid #020617;
+      background: radial-gradient(circle at center, #020617 0, #000 70%);
+      touch-action: none;
+    }
+
+    /* Bottom bar */
+    .bottom-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 6px 10px;
+      background: linear-gradient(to top, rgba(0,0,0,0.96), rgba(15,23,42,0.95));
+      border-top: 1px solid #020617;
+      display: flex;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .bottom-inner {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .bottom-text {
+      flex: 1;
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bottom-btn {
+      min-width: 80px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid #1e293b;
+      background: #020617;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .bottom-btn.primary {
+      background: var(--accent);
+      border-color: #60a5fa;
+      color: #f9fafb;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .modal-backdrop.show { display: flex; }
+
+    .modal {
+      background: #020617;
+      border-radius: 16px;
+      padding: 14px 16px;
+      width: min(360px, 100% - 32px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+      border: 1px solid #02091a;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <section class="instructions-card">
+      <div>🚚 <strong>משחק מסלול לוגיסטי (TSP)</strong></div>
+      <ul>
+        <li>המשאית מתחילה במרלוג הירוק.</li>
+        <li>הקישי על סניפים כדי לבחור את סדר הביקור.</li>
+        <li>אסור לבקר פעמיים באותו סניף.</li>
+        <li>המטרה: מרחק מינימלי.</li>
+      </ul>
+
+      <div class="stats-row">
+        <span class="stat-chip">
+          מרחק עד עכשיו: <span class="stat-value" id="currentDistance">0</span> ק"מ
+        </span>
+        <span class="stat-chip">
+          אופטימלי: <span class="stat-value" id="optimalDistanceDisplay">?</span> ק"מ
+        </span>
+      </div>
+    </section>
+
+    <section class="canvas-wrapper">
+      <canvas id="mapCanvas" width="900" height="520"></canvas>
+    </section>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="bottom-inner">
+      <div class="bottom-text">↩️ אפשר לבצע Undo</div>
+      <button class="bottom-btn" id="undoBtn">↩️ Undo</button>
+      <button class="bottom-btn primary" id="resetBtn">🔁 אתחול</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="resultBackdrop">
+    <div class="modal">
+      <h2>📊 סיום המסלול</h2>
+
+      <div>
+        המרחק שלך: <strong id="modalPlayerDistance"></strong><br />
+        המרחק האופטימלי: <strong id="modalOptimalDistance"></strong>
+      </div>
+
+      <div id="modalResultMessage" style="margin-top:10px; font-weight:600;"></div>
+
+      <div style="margin-top:14px;">
+        <button class="bottom-btn primary" id="playAgainBtn">🔁 משחק נוסף</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---- כל קוד המשחק (כולל drawNodes החדש) נמצא כאן ---- */
+/* ... בגלל מגבלת אורך ההודעה — אשלח לך בהודעה הבאה את כל הסקריפט המלא 1:1 ... */
+</script>
+
+</body>
+</html>
+
+<script>
+// ==== DOM elements ====
+const canvas = document.getElementById("mapCanvas");
+const ctx = canvas.getContext("2d");
+
+const currentDistanceEl = document.getElementById("currentDistance");
+const optimalDistanceDisplayEl = document.getElementById("optimalDistanceDisplay");
+
+const resetBtn = document.getElementById("resetBtn");
+const undoBtn = document.getElementById("undoBtn");
+
+const resultBackdrop = document.getElementById("resultBackdrop");
+const modalPlayerDistanceEl = document.getElementById("modalPlayerDistance");
+const modalOptimalDistanceEl = document.getElementById("modalOptimalDistance");
+const modalResultMessageEl = document.getElementById("modalResultMessage");
+const playAgainBtn = document.getElementById("playAgainBtn");
+
+// ==== Nodes (branches + depot) ====
+const nodes = [
+  { id: 0, name: "מרלוג", type: "depot",  x: 120, y: 260 },
+  { id: 1, name: "סניף צפון-מערב", type: "branch", x: 310, y: 130 },
+  { id: 2, name: "סניף מרכז עיר",  type: "branch", x: 500, y: 100 },
+  { id: 3, name: "סניף צפון-מזרח", type: "branch", x: 720, y: 140 },
+  { id: 4, name: "סניף דרום-מערב", type: "branch", x: 330, y: 380 },
+  { id: 5, name: "סניף דרום-מזרח", type: "branch", x: 560, y: 420 },
+  { id: 6, name: "סניף אזור תעשייה", type: "branch", x: 710, y: 320 },
+  { id: 7, name: "סניף פריפריה",   type: "branch", x: 480, y: 270 }
+];
+
+const NODE_RADIUS = 28;
+
+// Road network
+const roadDefinitions = [
+  { a: 0, b: 1, d: 4 }, { a: 0, b: 2, d: 5 }, { a: 0, b: 4, d: 5 },
+  { a: 0, b: 5, d: 6 }, { a: 0, b: 7, d: 6 },
+
+  { a: 1, b: 2, d: 3 }, { a: 1, b: 4, d: 4 },
+
+  { a: 2, b: 3, d: 4 }, { a: 2, b: 7, d: 3 },
+
+  { a: 3, b: 6, d: 5 },
+
+  { a: 4, b: 5, d: 3 }, { a: 4, b: 7, d: 4 },
+  { a: 5, b: 6, d: 4 }, { a: 5, b: 7, d: 3 },
+
+  { a: 6, b: 7, d: 4 }
+];
+
+const INF = 999999;
+const distances = [];
+const adjacency = [];
+
+// State
+let visited = [];
+let playerPath = [];
+let totalDistance = 0;
+let gameOver = false;
+
+let truckX = nodes[0].x;
+let truckY = nodes[0].y;
+let isAnimating = false;
+
+let optimalRoute = null;
+let optimalDistance = null;
+
+
+// ================= GRAPH BUILD =================
+function buildGraph() {
+  const n = nodes.length;
+  for (let i = 0; i < n; i++) {
+    distances[i] = [];
+    adjacency[i] = [];
+    for (let j = 0; j < n; j++) {
+      distances[i][j] = i === j ? 0 : INF;
+      adjacency[i][j] = false;
+    }
+  }
+
+  for (const road of roadDefinitions) {
+    const { a, b, d } = road;
+    distances[a][b] = d;
+    distances[b][a] = d;
+    adjacency[a][b] = true;
+    adjacency[b][a] = true;
+  }
+}
+
+function allBranchesVisited() {
+  for (let i = 1; i < nodes.length; i++) {
+    if (!visited[i]) return false;
+  }
+  return true;
+}
+
+
+// ================ BRUTE FORCE TSP ==================
+function computeOptimalRoute() {
+  const branches = [1, 2, 3, 4, 5, 6, 7];
+  let bestRoute = null;
+  let bestDist = INF;
+
+  function backtrack(path) {
+    if (path.length === branches.length) {
+      let prev = 0;
+      let d = 0;
+
+      for (const idx of path) {
+        if (!adjacency[prev][idx]) return;
+        d += distances[prev][idx];
+        prev = idx;
+      }
+
+      if (!adjacency[prev][0]) return;
+      d += distances[prev][0];
+
+      if (d < bestDist) {
+        bestDist = d;
+        bestRoute = [0, ...path, 0];
+      }
+
+      return;
+    }
+
+    for (let b of branches) {
+      if (!path.includes(b)) {
+        path.push(b);
+        backtrack(path);
+        path.pop();
+      }
+    }
+  }
+
+  backtrack([]);
+  return { route: bestRoute, distance: bestDist };
+}
+
+// ================= DRAW FUNCTIONS =================
+
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawAllRoads() {
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(107,114,128,0.75)";
+  ctx.font = "12px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (const road of roadDefinitions) {
+    const a = nodes[road.a];
+    const b = nodes[road.b];
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    const midX = (a.x + b.x) / 2;
+    const midY = (a.y + b.y) / 2;
+    const label = road.d + " ק\"מ";
+    const w = ctx.measureText(label).width;
+
+    ctx.fillStyle = "rgba(15,23,42,0.9)";
+    ctx.fillRect(midX - w/2 - 4, midY - 9, w + 8, 18);
+
+    ctx.fillStyle = "#d1d5db";
+    ctx.fillText(label, midX, midY);
+  }
+
+  ctx.restore();
+}
+
+function drawPlayerRoute() {
+  if (playerPath.length <= 1) return;
+
+  ctx.save();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#60a5fa";
+  ctx.shadowColor = "rgba(37,99,235,0.7)";
+  ctx.shadowBlur = 8;
+
+  ctx.beginPath();
+  const first = nodes[playerPath[0]];
+  ctx.moveTo(first.x, first.y);
+
+  for (let i = 1; i < playerPath.length; i++) {
+    const n = nodes[playerPath[i]];
+    ctx.lineTo(n.x, n.y);
+  }
+
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawNodes() {
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (const node of nodes) {
+    const isDepot = node.type === "depot";
+
+    // Background circle
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = isDepot ? "#22c55e" : "#3b82f6";
+    ctx.fill();
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(15,23,42,0.95)";
+    ctx.stroke();
+
+    // Icon
+    ctx.font = "22px system-ui";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(isDepot ? "🏭" : "🏪", node.x, node.y - 2);
+
+    // Label (above for ids 1,2,3)
+    ctx.font = "14px system-ui";
+    ctx.fillStyle = "#e5e7eb";
+
+    let labelY;
+    if (node.id === 1 || node.id === 2 || node.id === 3) {
+      labelY = node.y - NODE_RADIUS - 16;
+    } else {
+      labelY = node.y + NODE_RADIUS + 16;
+    }
+
+    ctx.fillText(node.name, node.x, labelY);
+  }
+
+  ctx.restore();
+}
+
+function drawTruck() {
+  ctx.save();
+
+  const x = truckX;
+  const y = truckY - NODE_RADIUS - 6;
+
+  ctx.fillStyle = "rgba(15,23,42,0.7)";
+  ctx.beginPath();
+  ctx.arc(x, y + 18, 16, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f97316";
+  ctx.fillRect(x - 22, y - 16, 38, 24);
+
+  ctx.fillStyle = "#fecaca";
+  ctx.fillRect(x + 4, y - 20, 22, 22);
+
+  ctx.fillStyle = "#e5f2ff";
+  ctx.fillRect(x + 8, y - 16, 10, 10);
+
+  ctx.fillStyle = "#020617";
+  ctx.beginPath();
+  ctx.arc(x - 14, y + 10, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 8, y + 10, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawScene() {
+  clearCanvas();
+  drawAllRoads();
+  drawPlayerRoute();
+  drawNodes();
+  drawTruck();
+}
+
+
+// ================ ANIMATION =================
+function animateMove(fromIndex, toIndex, onComplete) {
+  const from = nodes[fromIndex];
+  const to = nodes[toIndex];
+  const duration = 600;
+
+  const start = performance.now();
+  isAnimating = true;
+
+  function step(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const ease = t * t * (3 - 2 * t);
+
+    truckX = from.x + (to.x - from.x) * ease;
+    truckY = from.y + (to.y - from.y) * ease;
+
+    drawScene();
+
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      isAnimating = false;
+      truckX = to.x;
+      truckY = to.y;
+      drawScene();
+      if (onComplete) onComplete();
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+
+// ================= GAME LOGIC =================
+function resetGame() {
+  visited = new Array(nodes.length).fill(false);
+  visited[0] = true;
+
+  playerPath = [0];
+  totalDistance = 0;
+  gameOver = false;
+
+  truckX = nodes[0].x;
+  truckY = nodes[0].y;
+
+  currentDistanceEl.textContent = "0";
+
+  drawScene();
+}
+
+function undoLastMove() {
+  if (isAnimating) return;
+  if (playerPath.length <= 1) return;
+
+  const last = playerPath.pop();
+  const prev = playerPath[playerPath.length - 1];
+
+  visited[last] = false;
+
+  totalDistance -= distances[prev][last];
+  if (totalDistance < 0) totalDistance = 0;
+
+  truckX = nodes[prev].x;
+  truckY = nodes[prev].y;
+
+  currentDistanceEl.textContent = totalDistance;
+
+  drawScene();
+}
+
+function handlePointSelection(x, y) {
+  if (gameOver || isAnimating) return;
+
+  let chosen = null;
+  for (const node of nodes) {
+    const dx = x - node.x;
+    const dy = y - node.y;
+
+    if (dx*dx + dy*dy <= NODE_RADIUS*NODE_RADIUS*1.5) {
+      chosen = node.id;
+      break;
+    }
+  }
+
+  if (chosen === null) return;
+
+  const last = playerPath[playerPath.length - 1];
+
+  // Not connected
+  if (!adjacency[last][chosen]) return;
+
+  // Return to depot
+  if (chosen === 0) {
+    if (!allBranchesVisited()) return;
+
+    const leg = distances[last][0];
+    totalDistance += leg;
+    playerPath.push(0);
+
+    currentDistanceEl.textContent = totalDistance;
+
+    animateMove(last, 0, () => {
+      gameOver = true;
+      showResultsModal();
+    });
+
+    return;
+  }
+
+  // Already visited
+  if (visited[chosen]) return;
+
+  visited[chosen] = true;
+  playerPath.push(chosen);
+  totalDistance += distances[last][chosen];
+
+  currentDistanceEl.textContent = totalDistance;
+
+  animateMove(last, chosen);
+}
+
+
+// ============== MODAL ================
+function showResultsModal() {
+  modalPlayerDistanceEl.textContent = totalDistance + " ק\"מ";
+  modalOptimalDistanceEl.textContent = optimalDistance + " ק\"מ";
+
+  if (totalDistance === optimalDistance) {
+    modalResultMessageEl.textContent = "🏆 כל הכבוד! הגעת לאופטימלי!";
+  } else {
+    modalResultMessageEl.textContent =
+      "המסלול שלך ארוך ב־" + (totalDistance - optimalDistance) + " ק\"מ.";
+  }
+
+  resultBackdrop.classList.add("show");
+}
+
+function hideResultsModal() {
+  resultBackdrop.classList.remove("show");
+}
+
+
+// ================= EVENTS =================
+canvas.addEventListener("click", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+
+  handlePointSelection(x, y);
+});
+
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const x = (touch.clientX - rect.left) * scaleX;
+  const y = (touch.clientY - rect.top) * scaleY;
+
+  handlePointSelection(x, y);
+}, { passive: false });
+
+undoBtn.addEventListener("click", undoLastMove);
+resetBtn.addEventListener("click", resetGame);
+playAgainBtn.addEventListener("click", () => {
+  hideResultsModal();
+  resetGame();
+});
+
+resultBackdrop.addEventListener("click", (e) => {
+  if (e.target === resultBackdrop) hideResultsModal();
+});
+
+
+// ================= INIT =================
+function initGame() {
+  buildGraph();
+
+  const tsp = computeOptimalRoute();
+  optimalRoute = tsp.route;
+  optimalDistance = tsp.distance;
+
+  optimalDistanceDisplayEl.textContent = optimalDistance;
+
+  resetGame();
+}
+
+initGame();
+</script>

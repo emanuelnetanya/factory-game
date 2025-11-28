@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>משחק מסלול לוגיסטי תלת־מימדי - TSP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Heebo', sans-serif;
+      overflow: hidden;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #renderCanvas {
+      width: 100%;
+      height: 100vh;
+      display: block;
+      outline: none;
+    }
+
+    .ui-container {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* HEADER */
+    .header {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 22px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      pointer-events: auto;
+      max-width: 95vw;
+      width: auto;
+      flex-wrap: wrap;
+      transition: all 0.3s ease;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #3b82f6, #22c55e);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 6px 16px rgba(37,99,235,0.35);
+      flex-shrink: 0;
+    }
+
+    .logo-text h1 {
+      font-size: 17px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea, #1f2937);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      white-space: nowrap;
+    }
+
+    .logo-text p {
+      font-size: 11px;
+      color: #888;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 10px;
+    }
+
+    .stat-box {
+      text-align: center;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, #f8f9ff, #fff);
+      border-radius: 12px;
+      border: 1px solid rgba(102,126,234,0.15);
+      min-width: 80px;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      direction: ltr;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #888;
+      font-weight: 600;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-undo {
+      background: linear-gradient(135deg, #e5e7eb, #f9fafb);
+      color: #111827;
+      border: 1px solid rgba(148,163,184,0.7);
+    }
+
+    .btn-reset {
+      background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+      color: white;
+      box-shadow: 0 6px 16px rgba(255,107,107,0.25);
+    }
+
+    /* Help Toggle Button (Mobile) */
+    .btn-help-toggle {
+      display: none; /* Hidden on desktop */
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: white;
+      color: #667eea;
+      border: 1px solid rgba(102,126,234,0.3);
+      font-size: 18px;
+      font-weight: bold;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    /* SIDE PANEL */
+    .side-panel {
+      position: absolute;
+      top: 90px;
+      right: 15px;
+      width: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: auto;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .panel-card {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #333;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .instructions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .instruction-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #374151;
+      line-height: 1.4;
+    }
+
+    .instruction-num {
+      width: 20px;
+      height: 20px;
+      background: rgba(102,126,234,0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 11px;
+      color: #667eea;
+      flex-shrink: 0;
+    }
+
+    .status-message {
+      position: absolute;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 24px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 40px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      font-size: 13px;
+      font-weight: 700;
+      color: #333;
+      pointer-events: auto;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    /* POPUP תוצאה */
+    .celebration-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      pointer-events: auto;
+    }
+
+    .celebration-overlay.show { display: flex; }
+
+    .celebration-card {
+      background: white;
+      padding: 24px 26px;
+      border-radius: 22px;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+      animation: celebrationPop 0.4s ease;
+      max-width: 380px;
+      width: 90%;
+    }
+
+    @keyframes celebrationPop {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .celebration-icon { font-size: 46px; margin-bottom: 8px; }
+
+    .celebration-title {
+      font-size: 22px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+
+    .celebration-subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    .results-box {
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #f8f9ff, #fff);
+      border-radius: 16px;
+      border: 1px solid rgba(102,126,234,0.25);
+      font-size: 13px;
+      text-align: right;
+      direction: rtl;
+    }
+
+    .results-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .results-label { color: #666; font-weight: 700; }
+    .results-value { font-weight: 900; color: #333; direction: ltr; text-align: left; }
+
+    .result-message {
+      margin-top: 8px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .result-message.success { color: #16a34a; }
+    .result-message.fail { color: #dc2626; }
+
+    .modal-buttons {
+      margin-top: 14px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .modal-btn {
+      padding: 9px 20px;
+      border-radius: 999px;
+      border: none;
+      font-family: 'Heebo', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .modal-btn.main { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .modal-btn.ghost { background: transparent; color: #555; border: 1px dashed #cbd5f5; }
+
+    /* MOBILE STYLES */
+    /* MOBILE STYLES */
+    @media (max-width: 768px) {
+    .header {
+        top: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 96%;
+        max-width: none;
+        padding: 6px 10px;
+        gap: 6px;
+        border-radius: 12px;
+        flex-wrap: nowrap;              /* לא לעטוף לשורות נוספות */
+        justify-content: space-between; /* שורה אחת צרה */
+    }
+
+    .logo-text { 
+        display: none;                  /* כבר היה – משאיר מוסתר במובייל */
+    }
+
+    .logo-icon {
+        width: 30px;
+        height: 30px;
+        font-size: 18px;
+    }
+
+    .header-stats {
+        display: flex;
+        gap: 4px;
+    }
+
+    .stat-box {
+        padding: 2px 6px;
+        min-width: 56px;
+    }
+
+    .stat-value { 
+        font-size: 13px; 
+    }
+
+    .stat-label { 
+        font-size: 9px; 
+    }
+
+    .btn {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    /* הסתרת הפאנל כברירת מחדל והוספת כפתור עזרה */
+    .side-panel {
+        display: none; /* נפתח עם JS */
+        top: 70px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        z-index: 101;
+        max-height: calc(100vh - 100px);
+    }
+        
+    .side-panel.open { 
+        display: flex; 
+    }
+
+    .btn-help-toggle { 
+        display: flex;  /* הצגת כפתור עזרה קטן במקום פאנל קבוע */
+    }
+        
+    .status-message {
+        bottom: 15px;
+        width: 94%;
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+    }
+
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div class="ui-container">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-left">
+        <div class="logo">
+          <div class="logo-icon">🚚</div>
+          <div class="logo-text">
+            <h1>מסלול לוגיסטי</h1>
+            <p>משחק הובלות</p>
+          </div>
+        </div>
+        <!-- Help Toggle for Mobile -->
+        <div class="btn-help-toggle" id="helpBtn">?</div>
+      </div>
+
+      <div class="header-stats">
+        <div class="stat-box">
+          <div class="stat-value"><span id="currentDistance">0</span></div>
+          <div class="stat-label">נוכחי</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value"><span id="optimalDistanceDisplay">?</span></div>
+          <div class="stat-label">יעד</div>
+        </div>
+      </div>
+
+      <div class="header-buttons">
+        <button class="btn btn-undo" id="btn-undo">↩️</button>
+        <button class="btn btn-reset" id="btn-reset">🔄</button>
+      </div>
+    </div>
+
+    <!-- SIDE PANEL -->
+    <div class="side-panel" id="sidePanel">
+      <div class="panel-card instructions-card">
+        <div class="panel-title">💡 הוראות</div>
+        <div class="instructions-list">
+          <div class="instruction-item">
+            <div class="instruction-num">1</div>
+            <div>התחילי מהמרלוג המרכזי (ירוק).</div>
+          </div>
+          <div class="instruction-item">
+            <div class="instruction-num">2</div>
+            <div>לחצי על סניפים לבחירת המסלול.</div>
+          </div>
+          <div class="instruction-item">
+            <div class="instruction-num">3</div>
+            <div>אסור לחזור למרלוג לפני סיום הסבב.</div>
+          </div>
+          <div class="instruction-item">
+            <div class="instruction-num">4</div>
+            <div>חזרי למרלוג בסוף.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATUS -->
+    <div class="status-message" id="status-message">
+      👆 לחצי על הסניף הראשון כדי להתחיל
+    </div>
+  </div>
+
+  <!-- POPUP תוצאות -->
+  <div class="celebration-overlay" id="resultOverlay">
+    <div class="celebration-card">
+      <div class="celebration-icon">📊</div>
+      <div class="celebration-title">סיום המסלול</div>
+      <div class="celebration-subtitle">תוצאות</div>
+
+      <div class="results-box">
+        <div class="results-row">
+          <span class="results-label">שלך:</span>
+          <span class="results-value" id="modalPlayerDistance">0 ק&quot;מ</span>
+        </div>
+        <div class="results-row">
+          <span class="results-label">אופטימלי:</span>
+          <span class="results-value" id="modalOptimalDistance">0 ק&quot;מ</span>
+        </div>
+        <div class="result-message" id="modalResultMessage"></div>
+      </div>
+
+      <div class="modal-buttons">
+        <button class="modal-btn main" id="playAgainBtn">🔁 שחק שוב</button>
+        <button class="modal-btn ghost" id="closeModalBtn">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+    
+    // ---- נתונים ----
+    const nodes = [
+      { id: 0, name: "מרלוג מרכזי", type: "depot",  x: 0,   z: 0 },
+      { id: 1, name: "צפון-מערב", type: "branch", x: -30, z: -25 },
+      { id: 2, name: "מרכז העיר", type: "branch", x: -10,   z: -60 },
+      { id: 3, name: "צפון-מזרח", type: "branch", x: 25,  z: -22 },
+      { id: 4, name: "דרום-מערב", type: "branch", x: -35, z: 25 },
+      { id: 5, name: "דרום-מזרח", type: "branch", x: 20,  z: 25 },
+      { id: 6, name: "אזור תעשייה", type: "branch", x: 45,  z: 10 },
+      { id: 7, name: "פריפריה",   type: "branch", x: 0,   z: 45 }
+    ];
+
+    const roadDefinitions = [
+      { a: 0, b: 1, d: 4 }, { a: 0, b: 2, d: 5 }, { a: 0, b: 4, d: 5 },
+      { a: 0, b: 5, d: 6 }, { a: 0, b: 7, d: 6 },
+      { a: 1, b: 2, d: 3 }, { a: 1, b: 4, d: 4 },
+      { a: 2, b: 3, d: 4 },
+      //{ a: 2, b: 7, d: 3 },
+      { a: 3, b: 6, d: 5 },
+      //{ a: 4, b: 5, d: 3 }, 
+      { a: 1, b: 3, d: 6 },
+      { a: 4, b: 7, d: 4 },
+      { a: 2, b: 5, d: 6 },
+      { a: 5, b: 6, d: 4 }, { a: 5, b: 7, d: 3 }
+    ];
+
+    const INF = 999999;
+    const N = nodes.length;
+    const distances = Array.from({ length: N }, () => Array(N).fill(INF));
+    const adjacency = Array.from({ length: N }, () => Array(N).fill(false));
+
+    let visited = [];
+    let playerPath = [];
+    let totalDistance = 0;
+    let gameOver = false;
+    let isAnimating = false;
+    let optimalDistance = null;
+
+    let engine, scene, advancedTexture;
+    let nodeTransforms = [];
+    let truckParent;
+    let playerSegments = [];
+
+    // DOM
+    let currentDistanceEl, optimalDistanceEl, statusMessageEl, undoBtn, resetBtn, resultOverlay, modalPlayerDistanceEl, modalOptimalDistanceEl, modalResultMessageEl, playAgainBtn, closeModalBtn, helpBtn, sidePanel;
+
+    function buildGraph() {
+      for (let i = 0; i < N; i++) {
+        distances[i][i] = 0;
+        adjacency[i][i] = false;
+      }
+      for (const r of roadDefinitions) {
+        distances[r.a][r.b] = r.d;
+        distances[r.b][r.a] = r.d;
+        adjacency[r.a][r.b] = true;
+        adjacency[r.b][r.a] = true;
+      }
+    }
+
+    function allBranchesVisited() {
+      for (let i = 1; i < N; i++) if (!visited[i]) return false;
+      return true;
+    }
+
+    function computeOptimalRoute() {
+      const branches = [1,2,3,4,5,6,7];
+      let bestDist = INF;
+      function backtrack(path) {
+        if (path.length === branches.length) {
+          let prev = 0;
+          let d = 0;
+          for (const idx of path) {
+            if (!adjacency[prev][idx]) return;
+            d += distances[prev][idx];
+            prev = idx;
+          }
+          if (!adjacency[prev][0]) return;
+          d += distances[prev][0];
+          if (d < bestDist) bestDist = d;
+          return;
+        }
+        for (const b of branches) {
+          if (!path.includes(b)) {
+            path.push(b);
+            backtrack(path);
+            path.pop();
+          }
+        }
+      }
+      backtrack([]);
+      return bestDist;
+    }
+
+    function createScene(canvas) {
+      // יצירת מנוע וסצנה
+      engine = new BABYLON.Engine(canvas, true, { antialias: true });
+      scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.94, 0.96, 0.98, 1);
+
+      // זיהוי מובייל לפי רוחב או גובה המסך
+      const isMobile = (window.innerWidth < 768) || (window.innerHeight < 700);
+
+      // פרמטרים שונים למובייל ולדסקטופ
+      const mobileRadius  = 250;           // זום במובייל – נשאר כמו שאהבת
+      const desktopRadius = 160;           // קצת קרוב יותר בדסקטופ
+
+      // beta = זווית גובה:
+      // ערך גדול יותר (קרוב ל- PI/2) = יותר מבט-על
+      const mobileBeta  = Math.PI / 3.1;   // זווית טובה למובייל
+      const desktopBeta = Math.PI / 3;   // יותר מלמעלה בדסקטופ כדי לא לראות הכל בקו אחד
+
+      const fixedAlpha = -Math.PI / 2;     // כיוון מצד "צפון"
+      
+      const targetMobile  = new BABYLON.Vector3(0, 0, 10);
+      const targetDesktop = new BABYLON.Vector3(0, 0, 8);
+
+      const radius = isMobile ? mobileRadius : desktopRadius;
+      const beta   = isMobile ? mobileBeta   : desktopBeta;
+      const target = isMobile ? targetMobile : targetDesktop;
+
+      const camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        fixedAlpha,
+        beta,
+        radius,
+        target,
+        scene
+      );
+
+      // 🔒 נועלים את המצלמה – אין סיבוב, אין זום
+      camera.alpha  = fixedAlpha;
+      camera.beta   = beta;
+      camera.radius = radius;
+      camera.target = target;
+
+      camera.lowerAlphaLimit  = fixedAlpha;
+      camera.upperAlphaLimit  = fixedAlpha;
+      camera.lowerBetaLimit   = beta;
+      camera.upperBetaLimit   = beta;
+      camera.lowerRadiusLimit = radius;
+      camera.upperRadiusLimit = radius;
+
+      // לא מחברים ל-attachControl כדי שלא יזיזו עם העכבר/אצבע
+      // camera.attachControl(canvas, true);
+
+      // תאורה
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.8;
+
+      const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-0.5, -1, 0.4), scene);
+      sun.position = new BABYLON.Vector3(50, 70, -50);
+      sun.intensity = 0.95;
+
+      const shadowGen = new BABYLON.ShadowGenerator(1024, sun);
+      shadowGen.useBlurExponentialShadowMap = true;
+
+      // קרקע
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 180, height: 180 }, scene);
+      const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+      groundMat.diffuseColor = new BABYLON.Color3(0.9, 0.93, 0.96);
+      ground.material = groundMat;
+      ground.receiveShadows = true;
+
+      // Babylon GUI
+      advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+      // כבישים, עצים, סביבה
+      createRoads(scene);
+      createEnvironment(scene, shadowGen);
+
+      // יצירת הצמתים (מרלוג + סניפים)
+      nodes.forEach((node) => {
+        if (node.type === "depot") {
+          nodeTransforms[node.id] = createDepot(node, shadowGen);
+        } else {
+          nodeTransforms[node.id] = createBranch(node, shadowGen);
+        }
+      });
+
+      // שרטוט כל הקשתות עם המרחקים
+      drawAllRoadEdges(scene);
+
+      // משאית
+      truckParent = createTruckMesh(scene, shadowGen);
+      setTruckToNode(0);
+
+      // קליק על סניף – עדיין עובד כרגיל
+      scene.onPointerDown = (evt, pickResult) => {
+        if (!pickResult.hit || isAnimating || gameOver) return;
+
+        let mesh = pickResult.pickedMesh;
+        while (mesh && mesh.nodeId === undefined) {
+          mesh = mesh.parent;
+        }
+
+        if (mesh && typeof mesh.nodeId === "number") {
+          handleNodeClick(mesh.nodeId);
+        }
+      };
+
+      return scene;
+    }
+
+
+
+
+    function createRoads(scene) {
+      const roadMat = new BABYLON.StandardMaterial("roadMat", scene);
+      roadMat.diffuseColor = new BABYLON.Color3(0.38,0.4,0.45);
+      const lineMat = new BABYLON.StandardMaterial("lineMat", scene);
+      lineMat.diffuseColor = new BABYLON.Color3(1,0.95,0.4);
+
+      for (let i = -40; i <= 40; i += 20) {
+        const roadH = BABYLON.MeshBuilder.CreateBox("roadH"+i, { width: 160, height: 0.05, depth: 12 }, scene);
+        roadH.position.set(0,0.025,i);
+        roadH.material = roadMat;
+        const roadV = BABYLON.MeshBuilder.CreateBox("roadV"+i, { width: 12, height: 0.05, depth: 160 }, scene);
+        roadV.position.set(i,0.025,0);
+        roadV.material = roadMat;
+      }
+    }
+
+    function createEnvironment(scene, shadowGen) {
+      // מופחת עצים לביצועים
+      const treePositions = [[-50,-50],[50,-50],[-50,50],[50,50]];
+      treePositions.forEach(([x,z]) => {
+        const trunk = BABYLON.MeshBuilder.CreateCylinder("trunk",{ height: 3.5, diameter: 0.9 },scene);
+        trunk.position.set(x,1.75,z);
+        const trunkMat = new BABYLON.StandardMaterial("trunkMat",scene);
+        trunkMat.diffuseColor = new BABYLON.Color3(0.5,0.35,0.18);
+        trunk.material = trunkMat;
+        
+        const leaves = BABYLON.MeshBuilder.CreateSphere("leaves",{ diameter:6, segments:4 },scene); // פחות סגמנטים
+        leaves.position.set(x,5.4,z);
+        const leavesMat = new BABYLON.StandardMaterial("leavesMat",scene);
+        leavesMat.diffuseColor = new BABYLON.Color3(0.35,0.72,0.38);
+        leaves.material = leavesMat;
+        shadowGen.addShadowCaster(leaves);
+      });
+    }
+
+    function createDepot(node, shadowGen) {
+      const parent = new BABYLON.TransformNode("depot_"+node.id, scene);
+      parent.position = new BABYLON.Vector3(node.x,0,node.z);
+      parent.nodeId = node.id;
+      parent.scaling = new BABYLON.Vector3(1.4, 1.4, 1.4);
+
+
+      const base = BABYLON.MeshBuilder.CreateBox("depotBase", { width:6, height:4, depth:6 }, scene);
+      base.position.y = 3;
+      base.parent = parent;
+      const baseMat = new BABYLON.StandardMaterial("depotBaseMat",scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.3,0.8,0.5);
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+
+      addNodeLabel(parent, node.name, "#22c55e", node);
+      return parent;
+    }
+
+    function createBranch(node, shadowGen) {
+      const parent = new BABYLON.TransformNode("branch_"+node.id, scene);
+      parent.position = new BABYLON.Vector3(node.x,0,node.z);
+      parent.nodeId = node.id;
+      parent.scaling = new BABYLON.Vector3(1.6, 1.6, 1.6);  // ← הגדלת המבנה ב־30%
+
+
+      const base = BABYLON.MeshBuilder.CreateBox("branchBase",{width:4,height:3,depth:4},scene);
+      base.position.y = 2.25;
+      base.parent = parent;
+      const baseMat = new BABYLON.StandardMaterial("branchBaseMat",scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.4,0.55,0.9);
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+
+      const roof = BABYLON.MeshBuilder.CreateCylinder("branchRoof",{diameterTop:0,diameterBottom:5,height:1.4,tessellation:4},scene);
+      roof.position.y = 5;
+      roof.rotation.y = Math.PI/4;
+      roof.parent = parent;
+      const roofMat = new BABYLON.StandardMaterial("branchRoofMat",scene);
+      roofMat.diffuseColor = new BABYLON.Color3(0.6,0.3,0.3);
+      roof.material = roofMat;
+      shadowGen.addShadowCaster(roof);
+
+      addNodeLabel(parent, node.name, "#3b82f6", node);
+      return parent;
+    }
+
+    function addNodeLabel(parent, text, color, nodeData) {
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.adaptWidthToChildren = true;
+      rect.adaptHeightToChildren = true;
+      rect.cornerRadius = 5;
+      rect.thickness = 0;
+      rect.background = "rgba(15, 23, 42, 0.75)";
+      rect.paddingLeft = "0px";
+      rect.paddingTop = "0px";
+      advancedTexture.addControl(rect);
+      rect.linkWithMesh(parent);
+
+      rect.linkOffsetY = -20;  // הטקסט עולה למעלה
+      rect.linkOffsetX = 0;
+
+
+      const tb = new BABYLON.GUI.TextBlock();
+      tb.text = text;
+      tb.color = "white";
+      tb.fontSize = 12; 
+      tb.fontFamily = "Heebo";
+      tb.resizeToFit = true;
+      tb.paddingLeft = "1px";
+      tb.paddingRight = "1px";
+      tb.paddingTop = "1px";
+      tb.paddingBottom = "1px";
+      rect.addControl(tb);
+    }
+
+    function drawAllRoadEdges(scene) {
+      const tubeMat = new BABYLON.StandardMaterial("edgeMat",scene);
+      tubeMat.diffuseColor = new BABYLON.Color3(0.7,0.72,0.78);
+      tubeMat.alpha = 0.65;
+
+      roadDefinitions.forEach((r, idx) => {
+        const a = nodes[r.a];
+        const b = nodes[r.b];
+        const path = [new BABYLON.Vector3(a.x, 0.4, a.z), new BABYLON.Vector3(b.x, 0.4, b.z)];
+
+        const tube = BABYLON.MeshBuilder.CreateTube("edge_"+idx,{
+          path, radius: 0.25, tessellation: 8, cap: BABYLON.Mesh.CAP_ALL
+        },scene);
+        tube.material = tubeMat;
+
+        // --- חישוב מיקום התווית (מעודכן) ---
+        let position;
+
+        // 1. כביש צפון-מערב (1) לצפון-מזרח (3) -> קרוב ל-3
+        if ((r.a === 1 && r.b === 3) || (r.a === 3 && r.b === 1)) {
+            position = BABYLON.Vector3.Lerp(path[0], path[1], 0.8);
+            position.z -= 3; 
+        } 
+        // 2. כביש מרלוג (0) למרכז העיר (2) -> קרוב ל-2 (מרכז העיר)
+        else if ((r.a === 0 && r.b === 2) || (r.a === 2 && r.b === 0)) {
+            // אם a הוא 0 ו-b הוא 2, אז path[1] הוא מרכז העיר. 0.75 יקרב אותו לשם.
+            position = BABYLON.Vector3.Lerp(path[0], path[1], 0.6);
+        }
+        // כל השאר - באמצע
+        else {
+            position = BABYLON.Vector3.Center(path[0], path[1]);
+        }
+
+        const anchor = new BABYLON.TransformNode("edgeAnchor_"+idx,scene);
+        anchor.position = new BABYLON.Vector3(position.x, 2.5, position.z);
+        // ---------------------------------
+
+        const rect = new BABYLON.GUI.Rectangle();
+        rect.adaptWidthToChildren = true;
+        rect.adaptHeightToChildren = true;
+        rect.cornerRadius = 8;
+        rect.background = "rgba(220, 225, 230, 0.85)";
+        rect.thickness = 0;
+        advancedTexture.addControl(rect);
+        rect.linkWithMesh(anchor);
+
+        const tb = new BABYLON.GUI.TextBlock();
+        tb.text = r.d + " ק\"מ";
+        tb.color = "black";
+        tb.fontSize = 11;
+        tb.fontFamily = "Heebo";
+        tb.resizeToFit = true;
+        tb.paddingLeft = "2px";
+        tb.paddingRight = "2px";
+        tb.paddingTop = "2px";
+        tb.paddingBottom = "2px";
+        rect.addControl(tb);
+      });
+    }
+
+    function createTruckMesh(scene, shadowGen) {
+      // נקודת האב (הבלתי נראית) שמחזיקה את הכל
+      const parent = new BABYLON.TransformNode("truckParent", scene);
+      parent.position.y = 0.1;
+
+      // --- חומרים ---
+      // צבע כתום לארגז המטען
+      const cargoMat = new BABYLON.StandardMaterial("cargoMat", scene);
+      cargoMat.diffuseColor = new BABYLON.Color3(0.98, 0.6, 0.2); 
+      
+      // צבע כחול/אפור לקבינה
+      const cabinMat = new BABYLON.StandardMaterial("cabinMat", scene);
+      cabinMat.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.4);
+      
+      // צבע שחור לגלגלים
+      const wheelMat = new BABYLON.StandardMaterial("wheelMat", scene);
+      wheelMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+      // --- חלק 1: ארגז המטען (החלק האחורי) ---
+      const cargo = BABYLON.MeshBuilder.CreateBox("truckCargo", { width: 3.2, height: 2, depth: 4 }, scene);
+      cargo.position.y = 1.5; // גובה
+      cargo.position.z = -1;  // הזזה אחורה
+      cargo.parent = parent;
+      cargo.material = cargoMat;
+      shadowGen.addShadowCaster(cargo);
+
+      // --- חלק 2: הקבינה (החלק הקדמי) ---
+      const cabin = BABYLON.MeshBuilder.CreateBox("truckCabin", { width: 3.2, height: 2.5, depth: 2 }, scene);
+      cabin.position.y = 1.75; // קצת יותר גבוה מהמטען
+      cabin.position.z = 2;    // הזזה קדימה
+      cabin.parent = parent;
+      cabin.material = cabinMat;
+      shadowGen.addShadowCaster(cabin);
+
+      // --- חלק 3: גלגלים ---
+      // פונקציה לעזר ליצירת גלגל
+      const createWheel = (name, x, z) => {
+          // גלגל הוא גליל (Cylinder) מסובב
+          const wheel = BABYLON.MeshBuilder.CreateCylinder(name, { diameter: 1.5, height: 0.8, tessellation: 12 }, scene);
+          wheel.rotation.z = Math.PI / 2; // סיבוב שוכב
+          wheel.position.set(x, 0.75, z); // מיקום
+          wheel.parent = parent;
+          wheel.material = wheelMat;
+          shadowGen.addShadowCaster(wheel);
+      };
+
+      // יצירת 4 גלגלים
+      createWheel("w_fr",  1.8,  2); // קדמי ימני
+      createWheel("w_fl", -1.8,  2); // קדמי שמאלי
+      createWheel("w_br",  1.8, -1.5); // אחורי ימני
+      createWheel("w_bl", -1.8, -1.5); // אחורי שמאלי
+
+      // הגדלה כללית (שכבר הוספנו קודם)
+      parent.scaling = new BABYLON.Vector3(1.4, 1.4, 1.4);
+
+      return parent;
+    }
+
+    function setTruckToNode(nodeId) {
+      const t = nodeTransforms[nodeId];
+      if (!t) return;
+      
+      // אם זה המרלוג (0), נמקם את המשאית קצת בחוץ (Z=6) כדי שלא תהיה בתוך המבנה
+      if (nodeId === 0) {
+          truckParent.position.x = t.position.x;
+          truckParent.position.z = t.position.z - 8; // הוצאה החוצה
+          truckParent.rotation.y = Math.PI; // שתפנה לכיוון הכביש
+      } else {
+          // בסניפים אחרים (במקרה של Undo), נמקם במרכז
+          truckParent.position.x = t.position.x;
+          truckParent.position.z = t.position.z;
+      }
+    }
+
+    function animateTruck(fromId, toId, cb) {
+      const fromPos = nodeTransforms[fromId].position; // מרכז נקודת המוצא
+      const toPos = nodeTransforms[toId].position;     // מרכז נקודת היעד (בתוך המבנה)
+      
+      isAnimating = true;
+
+      // 1. חישוב וקטור הכיוון (מאיפה לאיפה)
+      const direction = toPos.subtract(fromPos).normalize();
+      
+      // 2. חישוב זווית הסיבוב של המשאית
+      const dx = toPos.x - fromPos.x;
+      const dz = toPos.z - fromPos.z;
+      if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+        truckParent.rotation.y = Math.atan2(dx, dz);
+      }
+
+      // 3. חישוב נקודת העצירה החדשה (Stop Point)
+      // אנחנו לוקחים את היעד הסופי, ומחסירים ממנו 5 יחידות בכיוון שממנו באנו
+      // זה יגרום למשאית לעצור בכניסה למבנה ולא בתוכו
+      const stopOffset = 5.5; // מרחק העצירה מהמרכז
+      const targetX = toPos.x - (direction.x * stopOffset);
+      const targetZ = toPos.z - (direction.z * stopOffset);
+
+      // 4. אנימציה לנקודה החדשה
+      gsap.to(truckParent.position, {
+        x: targetX, 
+        z: targetZ, 
+        duration: 1.2, 
+        ease: "power2.inOut",
+        onComplete: () => {
+          isAnimating = false;
+          if (cb) cb();
+        }
+      });
+
+      // שרטוט הקו הכחול (נשאר אותו דבר, מצויר בין המרכזים כדי שיראה יפה על הכביש)
+      if (playerPath.length > 0) {
+        const path = [
+            new BABYLON.Vector3(fromPos.x, 0.8, fromPos.z), 
+            new BABYLON.Vector3(toPos.x, 0.8, toPos.z)
+        ];
+        const tube = BABYLON.MeshBuilder.CreateTube("playerSeg",{path, radius: 0.4, tessellation: 8},scene);
+        const mat = new BABYLON.StandardMaterial("playerSegMat",scene);
+        mat.diffuseColor = new BABYLON.Color3(0.37,0.67,1);
+        tube.material = mat;
+        playerSegments.push(tube);
+      }
+    }
+
+    function resetGame() {
+      visited = Array(N).fill(false);
+      visited[0] = true;
+      playerPath = [0];
+      totalDistance = 0;
+      gameOver = false;
+      isAnimating = false;
+      currentDistanceEl.textContent = "0";
+      statusMessageEl.textContent = "👆 לחצי על הסניף הראשון במסלול כדי להתחיל";
+      playerSegments.forEach(m => m.dispose());
+      playerSegments = [];
+      setTruckToNode(0);
+    }
+
+    function undoLastMove() {
+      if (isAnimating || playerPath.length <= 1) return;
+      const last = playerPath.pop();
+      const prev = playerPath[playerPath.length - 1];
+      if (last !== 0) visited[last] = false;
+      totalDistance -= distances[prev][last];
+      if (totalDistance < 0) totalDistance = 0;
+      const seg = playerSegments.pop();
+      if (seg) seg.dispose();
+      setTruckToNode(prev);
+      currentDistanceEl.textContent = totalDistance.toString();
+      gameOver = false;
+      statusMessageEl.textContent = "↩️ הצעד האחרון הוסר.";
+    }
+
+    function handleNodeClick(nodeId) {
+      if (isAnimating || gameOver) return;
+      const last = playerPath[playerPath.length - 1];
+      if (!adjacency[last][nodeId]) return;
+      if (nodeId === 0) {
+        if (!allBranchesVisited()) {
+          statusMessageEl.textContent = "⚠️ אי אפשר לחזור למרלוג לפני ביקור בכולם.";
+          return;
+        }
+        totalDistance += distances[last][0];
+        playerPath.push(0);
+        currentDistanceEl.textContent = totalDistance.toString();
+        statusMessageEl.textContent = "🚚 המשאית חוזרת למרלוג...";
+        animateTruck(last, 0, () => {
+          gameOver = true;
+          showResultPopup();
+        });
+        return;
+      }
+      if (visited[nodeId]) {
+        statusMessageEl.textContent = "⚠️ כבר ביקרת בסניף הזה.";
+        return;
+      }
+      visited[nodeId] = true;
+      playerPath.push(nodeId);
+      totalDistance += distances[last][nodeId];
+      currentDistanceEl.textContent = totalDistance.toString();
+      statusMessageEl.textContent = "🚚 בדרך ל" + nodes[nodeId].name;
+      animateTruck(last, nodeId);
+    }
+
+    function showResultPopup() {
+      modalPlayerDistanceEl.textContent = totalDistance + " ק\"מ";
+      modalOptimalDistanceEl.textContent = optimalDistance + " ק\"מ";
+      const diff = totalDistance - optimalDistance;
+      if (diff === 0) {
+        modalResultMessageEl.className = "result-message success";
+        modalResultMessageEl.textContent = "🏆 כל הכבוד! בחרת במסלול האופטימלי!";
+      } else {
+        modalResultMessageEl.className = "result-message fail";
+        modalResultMessageEl.textContent = "🤏 המסלול שלך ארוך ב־" + diff + " ק\"מ מהאופטימלי.";
+      }
+      resultOverlay.classList.add("show");
+    }
+
+    function hideResultPopup() {
+      resultOverlay.classList.remove("show");
+    }
+
+    // INIT
+    window.addEventListener("DOMContentLoaded", () => {
+      currentDistanceEl = document.getElementById("currentDistance");
+      optimalDistanceEl = document.getElementById("optimalDistanceDisplay");
+      statusMessageEl = document.getElementById("status-message");
+      undoBtn = document.getElementById("btn-undo");
+      resetBtn = document.getElementById("btn-reset");
+      resultOverlay = document.getElementById("resultOverlay");
+      modalPlayerDistanceEl = document.getElementById("modalPlayerDistance");
+      modalOptimalDistanceEl = document.getElementById("modalOptimalDistance");
+      modalResultMessageEl = document.getElementById("modalResultMessage");
+      playAgainBtn = document.getElementById("playAgainBtn");
+      closeModalBtn = document.getElementById("closeModalBtn");
+      helpBtn = document.getElementById("helpBtn");
+      sidePanel = document.getElementById("sidePanel");
+
+      buildGraph();
+      optimalDistance = computeOptimalRoute();
+      optimalDistanceEl.textContent = optimalDistance.toString();
+
+      const canvas = document.getElementById("renderCanvas");
+      createScene(canvas);
+      resetGame();
+
+      undoBtn.addEventListener("click", undoLastMove);
+      resetBtn.addEventListener("click", () => { hideResultPopup(); resetGame(); });
+      playAgainBtn.addEventListener("click", () => { hideResultPopup(); resetGame(); });
+      closeModalBtn.addEventListener("click", hideResultPopup);
+      
+      if(helpBtn) {
+        helpBtn.addEventListener("click", () => {
+          sidePanel.classList.toggle("open");
+        });
+      }
+
+      engine.runRenderLoop(() => scene.render());
+      window.addEventListener("resize", () => engine.resize());
+    });
+
+    })();
+  </script>
+</body>
+</html>
