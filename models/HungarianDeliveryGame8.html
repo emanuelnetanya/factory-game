@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#667eea">
+  <title>משחק הקצאת שליחים - האלגוריתם ההונגרי</title>
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    body {
+      font-family: 'Heebo', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    /* ==================== SPLASH SCREEN ==================== */
+    .splash-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .splash-screen.hidden {
+      display: none;
+    }
+
+    .splash-logo {
+      width: 120px;
+      height: 120px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      margin-bottom: 30px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    .splash-title {
+      font-size: clamp(28px, 6vw, 42px);
+      font-weight: 900;
+      color: white;
+      margin-bottom: 10px;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .splash-subtitle {
+      font-size: clamp(16px, 4vw, 22px);
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 40px;
+      font-weight: 500;
+    }
+
+    .splash-instructions {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 25px 30px;
+      max-width: 400px;
+      margin-bottom: 40px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .splash-instructions h3 {
+      color: white;
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+
+    .splash-instructions p {
+      color: rgba(255,255,255,0.9);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .splash-start-btn {
+      padding: 18px 60px;
+      background: white;
+      color: #667eea;
+      border: none;
+      border-radius: 50px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+    }
+
+    .splash-start-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    }
+
+    .splash-start-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* ==================== GAME CANVAS ==================== */
+    #renderCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      outline: none;
+      touch-action: none;
+    }
+
+    /* ==================== HEADER ==================== */
+    .game-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 15px;
+      padding-top: max(10px, env(safe-area-inset-top));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      z-index: 100;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(255,107,107,0.3);
+    }
+
+    .header-logo-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header-logo-text h1 {
+      font-size: 14px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    .header-logo-text span {
+      font-size: 10px;
+      color: #888;
+      font-weight: 500;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 8px;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, #f8f9ff, #fff);
+      border-radius: 12px;
+      border: 1px solid rgba(102,126,234,0.15);
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      color: #888;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102,126,234,0.3);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #4CAF50, #66BB6A);
+      color: white;
+      box-shadow: 0 4px 12px rgba(76,175,80,0.3);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+      color: white;
+      box-shadow: 0 4px 12px rgba(255,107,107,0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn:not(:disabled):hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:not(:disabled):active {
+      transform: scale(0.95);
+    }
+
+    /* Mobile header adjustments */
+    @media (max-width: 600px) {
+      .header-logo-text h1 { font-size: 12px; }
+      .header-logo-text span { display: none; }
+      .header-logo-icon { width: 36px; height: 36px; font-size: 18px; }
+      .stat-item { padding: 5px 8px; }
+      .stat-value { font-size: 14px; }
+      .stat-label { font-size: 8px; }
+      .btn { padding: 6px 10px; font-size: 11px; }
+      .btn span.btn-text { display: none; }
+    }
+
+    /* ==================== BOTTOM STATUS BAR ==================== */
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 12px 20px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .status-message {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      text-align: center;
+      flex: 1;
+    }
+
+    .status-hint {
+      background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+      border: 1px solid #FFB74D;
+      border-radius: 12px;
+      padding: 10px 15px;
+      font-size: 13px;
+      color: #E65100;
+      display: none;
+    }
+
+    .status-hint.show {
+      display: block;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* ==================== COURIER SELECTION MODAL ==================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .courier-modal {
+      background: white;
+      border-radius: 24px;
+      max-width: 420px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+      animation: modalPop 0.3s ease;
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: white;
+      border-radius: 24px 24px 0 0;
+      z-index: 1;
+    }
+
+    .modal-courier-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-courier-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    .modal-courier-name {
+      font-size: 20px;
+      font-weight: 800;
+      color: #333;
+    }
+
+    .modal-courier-status {
+      font-size: 12px;
+      color: #888;
+      font-weight: 500;
+    }
+
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: #f5f5f5;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: #eee;
+      transform: rotate(90deg);
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-section {
+      margin-bottom: 20px;
+    }
+
+    .modal-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .orders-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .order-info-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #f8f9ff;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    .order-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .order-info-text {
+      color: #333;
+    }
+
+    .order-info-text strong {
+      color: #667eea;
+    }
+
+    /* Time Matrix */
+    .time-matrix {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .matrix-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 15px;
+      background: #f8f9ff;
+      border-radius: 14px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .matrix-row:hover {
+      background: #f0f3ff;
+      border-color: #667eea;
+    }
+
+    .matrix-row.assigned {
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      border-color: #4CAF50;
+    }
+
+    .matrix-row.assigned-other {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .matrix-row-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .matrix-family-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .matrix-family-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .matrix-restaurant {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .matrix-time {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 16px;
+      font-weight: 800;
+      color: #667eea;
+    }
+
+    .matrix-select-btn {
+      padding: 6px 14px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .matrix-select-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .matrix-row.assigned .matrix-select-btn {
+      background: #4CAF50;
+    }
+
+    .matrix-row.assigned-other .matrix-select-btn {
+      display: none;
+    }
+
+    .assigned-badge {
+      display: none;
+      padding: 4px 10px;
+      background: #4CAF50;
+      color: white;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .matrix-row.assigned .assigned-badge {
+      display: block;
+    }
+
+    .matrix-row.assigned .matrix-select-btn {
+      display: none;
+    }
+
+    .matrix-row.assigned-other .assigned-badge {
+      display: block;
+      background: #999;
+    }
+
+    /* Modal Footer */
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: center;
+    }
+
+    .modal-footer-btn {
+      padding: 12px 30px;
+      background: #f5f5f5;
+      color: #666;
+      border: none;
+      border-radius: 25px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .modal-footer-btn:hover {
+      background: #eee;
+    }
+
+    /* ==================== CELEBRATION SCREEN ==================== */
+    .celebration-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .celebration-overlay.show {
+      display: flex;
+    }
+
+    .celebration-card {
+      background: white;
+      border-radius: 28px;
+      max-width: 500px;
+      width: 100%;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+      animation: celebPop 0.5s ease;
+    }
+
+    @keyframes celebPop {
+      0% { transform: scale(0.8) translateY(50px); opacity: 0; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .celeb-icon {
+      font-size: 70px;
+      margin-bottom: 15px;
+    }
+
+    .celeb-title {
+      font-size: 32px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .celeb-subtitle {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 25px;
+    }
+
+    .results-comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .result-card {
+      padding: 18px;
+      border-radius: 18px;
+      text-align: center;
+    }
+
+    .result-card.user {
+      background: linear-gradient(135deg, #fff8e1, #ffecb3);
+      border: 2px solid #FFC107;
+    }
+
+    .result-card.optimal {
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      border: 2px solid #4CAF50;
+    }
+
+    .result-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .result-time {
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .result-card.user .result-time { color: #FF9800; }
+    .result-card.optimal .result-time { color: #4CAF50; }
+
+    .result-sub {
+      font-size: 11px;
+      color: #888;
+      margin-top: 5px;
+    }
+
+    .comparison-message {
+      background: #f5f5f5;
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .optimal-assignments {
+      background: #f0f4ff;
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 20px;
+      text-align: right;
+    }
+
+    .optimal-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+
+    .optimal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .optimal-item {
+      font-size: 12px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .insight-box {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 25px;
+      text-align: right;
+    }
+
+    .insight-title {
+      color: rgba(255,255,255,0.9);
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .insight-text {
+      color: white;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .play-again-btn {
+      padding: 16px 50px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+      transition: all 0.3s ease;
+    }
+
+    .play-again-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(102,126,234,0.5);
+    }
+
+    /* ==================== PROGRESS INDICATOR ==================== */
+    .progress-dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    .progress-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      transition: all 0.3s ease;
+    }
+
+    .progress-dot.filled {
+      background: linear-gradient(135deg, #4CAF50, #66BB6A);
+      box-shadow: 0 2px 8px rgba(76,175,80,0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== SPLASH SCREEN ==================== -->
+  <div class="splash-screen" id="splash-screen">
+    <div class="splash-logo">🏍️</div>
+    <h1 class="splash-title">משחק הקצאת שליחים</h1>
+    <p class="splash-subtitle">למד את האלגוריתם ההונגרי בצורה אינטראקטיבית</p>
+    
+    <div class="splash-instructions">
+      <h3>🎯 המשימה שלך</h3>
+      <p>
+        יש 4 שליחים ו-4 משפחות שהזמינו אוכל.
+        <br><br>
+        שבץ כל שליח למשפחה כך ש<strong>זמן הנסיעה הכולל</strong> יהיה הקצר ביותר.
+        <br><br>
+        בסוף תגלה האם הצלחת למצוא את הפתרון האופטימלי!
+      </p>
+    </div>
+    
+    <button class="splash-start-btn" onclick="startGame()">🚀 התחל לשחק</button>
+  </div>
+
+  <!-- ==================== GAME CANVAS ==================== -->
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- ==================== HEADER ==================== -->
+  <div class="game-header" id="game-header" style="display: none;">
+    <div class="header-logo">
+      <div class="header-logo-icon">🏍️</div>
+      <div class="header-logo-text">
+        <h1>הקצאת שליחים</h1>
+        <span>האלגוריתם ההונגרי</span>
+      </div>
+    </div>
+    
+    <div class="header-stats">
+      <div class="stat-item">
+        <div class="stat-value" id="stat-assigned">0/4</div>
+        <div class="stat-label">שובצו</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-time">00:00</div>
+        <div class="stat-label">זמן כולל</div>
+      </div>
+    </div>
+    
+    <div class="header-actions">
+      <button class="btn btn-success" id="btn-start-delivery" onclick="startDeliveryAnimation()" disabled>
+        ▶️ <span class="btn-text">הפעל</span>
+      </button>
+      <button class="btn btn-danger" onclick="resetGame()">
+        🔄 <span class="btn-text">איפוס</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== STATUS BAR ==================== -->
+  <div class="status-bar" id="status-bar" style="display: none;">
+    <div class="status-message" id="status-message">
+      👆 לחץ על אופנוע כדי לבחור שליח ולראות את זמני ההגעה
+    </div>
+  </div>
+
+  <!-- ==================== COURIER SELECTION MODAL ==================== -->
+  <div class="modal-overlay" id="courier-modal">
+    <div class="courier-modal">
+      <div class="modal-header">
+        <div class="modal-courier-info">
+          <div class="modal-courier-avatar" id="modal-avatar">🏍️</div>
+          <div>
+            <div class="modal-courier-name" id="modal-courier-name">יוסי</div>
+            <div class="modal-courier-status" id="modal-courier-status">בחר משפחה לשליחות</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title">📋 ההזמנות במערכת</div>
+          <div class="orders-list" id="modal-orders-list"></div>
+        </div>
+        
+        <div class="modal-section">
+          <div class="modal-section-title">⏱️ זמני הגעה עבור <span id="modal-courier-name-2">יוסי</span></div>
+          <div class="time-matrix" id="modal-time-matrix"></div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="modal-footer-btn" onclick="closeModal()">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CELEBRATION SCREEN ==================== -->
+  <div class="celebration-overlay" id="celebration">
+    <div class="celebration-card">
+      <div class="celeb-icon" id="celeb-icon">🎉</div>
+      <h2 class="celeb-title" id="celeb-title">כל הכבוד!</h2>
+      <p class="celeb-subtitle" id="celeb-subtitle">השלמת את כל השיבוצים</p>
+      
+      <div class="progress-dots" id="celeb-progress"></div>
+      
+      <div class="results-comparison">
+        <div class="result-card user">
+          <div class="result-label">הפתרון שלך</div>
+          <div class="result-time" id="result-user-time">00:00</div>
+          <div class="result-sub" id="result-user-sub">זמן שיבוץ: 00:00</div>
+        </div>
+        <div class="result-card optimal">
+          <div class="result-label">הפתרון האופטימלי</div>
+          <div class="result-time" id="result-optimal-time">00:00</div>
+          <div class="result-sub" id="result-optimal-sub">חושב ב-0.00 ms</div>
+        </div>
+      </div>
+      
+      <div class="comparison-message" id="comparison-message"></div>
+      
+      <div class="optimal-assignments" id="optimal-assignments">
+        <div class="optimal-title">🏆 השיבוץ האופטימלי:</div>
+        <div class="optimal-list" id="optimal-list"></div>
+      </div>
+      
+      <div class="insight-box">
+        <div class="insight-title">💡 למה זה חשוב?</div>
+        <div class="insight-text" id="insight-text">
+          במשחק זה שיבצת רק 4 שליחים. 
+          בחברות כמו וולט יש אלפי שליחים והזמנות בו-זמנית!
+          <br><br>
+          כאן נכנס המהנדס תעשייה וניהול - לבנות אלגוריתמים שחוסכים שעות יקרות כל יום.
+        </div>
+      </div>
+      
+      <button class="play-again-btn" onclick="resetGame()">🔄 שחק שוב</button>
+    </div>
+  </div>
+
+  <script>
+    // ==================== CONFIGURATION ====================
+    const SPEED_UNITS_PER_SECOND = 10;
+    
+    const couriers = [
+      { id: 1, x: -22, z: -22, color: '#FF6B6B', name: 'יוסי' },
+      { id: 2, x: 22, z: -20, color: '#4ECDC4', name: 'מיכל' },
+      { id: 3, x: -20, z: 22, color: '#45B7D1', name: 'דני' },
+      { id: 4, x: 24, z: 18, color: '#FFA07A', name: 'שרה' }
+    ];
+
+    const orders = [
+      { id: 1, restX: 0, restZ: -28, custX: 28, custZ: -25, color: '#FFD93D', restaurant: 'פיצה רומא', family: 'משפחת כהן' },
+      { id: 2, restX: -28, restZ: 0, custX: 22, custZ: 28, color: '#6BCF7F', restaurant: 'סושי טוקיו', family: 'משפחת לוי' },
+      { id: 3, restX: 28, restZ: -5, custX: -22, custZ: 30, color: '#B4A7D6', restaurant: 'בורגר האוס', family: 'משפחת אברהם' },
+      { id: 4, restX: 5, restZ: 28, custX: 32, custZ: 10, color: '#FF9FF3', restaurant: 'פלאפל הזהב', family: 'משפחת דוד' }
+    ];
+
+    // ==================== GAME STATE ====================
+    let gameState = {
+      started: false,
+      selectedCourier: null,
+      assignments: {},
+      startTime: null,
+      elapsedTime: 0,
+      isAnimating: false,
+      isComplete: false,
+      algorithmTimeMs: 0
+    };
+
+    let scene, engine, canvas;
+    let advancedTexture;
+    let courierMeshes = [];
+    let assignmentLines = {};
+    let timerInterval;
+
+    // ==================== UTILITY FUNCTIONS ====================
+    function distanceToSeconds(distance) {
+      return distance / SPEED_UNITS_PER_SECOND;
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const secs = (seconds % 60).toString().padStart(2, '0');
+      return `${mins}:${secs}`;
+    }
+
+    function getCourierOrderDistance(courier, order) {
+      const toRest = Math.sqrt(Math.pow(order.restX - courier.x, 2) + Math.pow(order.restZ - courier.z, 2));
+      const toCust = Math.sqrt(Math.pow(order.custX - order.restX, 2) + Math.pow(order.custZ - order.restZ, 2));
+      return Math.round((toRest + toCust) * 10) / 10;
+    }
+
+    function getTotalDistance() {
+      let total = 0;
+      Object.entries(gameState.assignments).forEach(([cId, oId]) => {
+        const courier = couriers.find(c => c.id === parseInt(cId));
+        const order = orders.find(o => o.id === oId);
+        if (courier && order) {
+          total += getCourierOrderDistance(courier, order);
+        }
+      });
+      return Math.round(total * 10) / 10;
+    }
+
+    // ==================== HUNGARIAN ALGORITHM ====================
+    function hungarianAlgorithm(costMatrix) {
+      const n = costMatrix.length;
+      const u = new Array(n + 1).fill(0);
+      const v = new Array(n + 1).fill(0);
+      const p = new Array(n + 1).fill(0);
+      const way = new Array(n + 1).fill(0);
+
+      for (let i = 1; i <= n; i++) {
+        p[0] = i;
+        let j0 = 0;
+        const minv = new Array(n + 1).fill(Infinity);
+        const used = new Array(n + 1).fill(false);
+
+        do {
+          used[j0] = true;
+          const i0 = p[j0];
+          let delta = Infinity;
+          let j1;
+
+          for (let j = 1; j <= n; j++) {
+            if (!used[j]) {
+              const cur = costMatrix[i0 - 1][j - 1] - u[i0] - v[j];
+              if (cur < minv[j]) {
+                minv[j] = cur;
+                way[j] = j0;
+              }
+              if (minv[j] < delta) {
+                delta = minv[j];
+                j1 = j;
+              }
+            }
+          }
+
+          for (let j = 0; j <= n; j++) {
+            if (used[j]) {
+              u[p[j]] += delta;
+              v[j] -= delta;
+            } else {
+              minv[j] -= delta;
+            }
+          }
+          j0 = j1;
+        } while (p[j0] !== 0);
+
+        do {
+          const j1 = way[j0];
+          p[j0] = p[j1];
+          j0 = j1;
+        } while (j0);
+      }
+
+      const result = [];
+      for (let j = 1; j <= n; j++) {
+        if (p[j] !== 0) {
+          result[p[j] - 1] = j - 1;
+        }
+      }
+      return result;
+    }
+
+    function calculateOptimalSolution() {
+      const costMatrix = couriers.map(c => orders.map(o => getCourierOrderDistance(c, o)));
+      const assignment = hungarianAlgorithm(costMatrix);
+      
+      let totalDistance = 0;
+      const optimalAssignments = {};
+      
+      assignment.forEach((orderIndex, courierIndex) => {
+        const courier = couriers[courierIndex];
+        const order = orders[orderIndex];
+        optimalAssignments[courier.id] = order.id;
+        totalDistance += costMatrix[courierIndex][orderIndex];
+      });
+      
+      return { assignments: optimalAssignments, distance: Math.round(totalDistance * 10) / 10 };
+    }
+
+    // ==================== FULLSCREEN ====================
+    function enterFullscreen() {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
+    }
+
+    // ==================== GAME FLOW ====================
+    function startGame() {
+      enterFullscreen();
+      document.getElementById('splash-screen').classList.add('hidden');
+      document.getElementById('game-header').style.display = 'flex';
+      document.getElementById('status-bar').style.display = 'flex';
+      gameState.started = true;
+      
+      if (engine) engine.resize();
+    }
+
+    function startTimer() {
+      gameState.startTime = Date.now();
+      timerInterval = setInterval(() => {
+        if (gameState.startTime && !gameState.isComplete) {
+          gameState.elapsedTime = Math.floor((Date.now() - gameState.startTime) / 1000);
+        }
+      }, 1000);
+    }
+
+    // ==================== MODAL ====================
+    function openModal(courierId) {
+      const courier = couriers.find(c => c.id === courierId);
+      if (!courier) return;
+      
+      gameState.selectedCourier = courierId;
+      
+      if (!gameState.startTime) startTimer();
+      
+      // Update modal header
+      document.getElementById('modal-avatar').style.background = courier.color;
+      document.getElementById('modal-courier-name').textContent = courier.name;
+      document.getElementById('modal-courier-name-2').textContent = courier.name;
+      
+      const assignedOrderId = gameState.assignments[courierId];
+      document.getElementById('modal-courier-status').textContent = 
+        assignedOrderId ? `משובץ ל${orders.find(o => o.id === assignedOrderId).family}` : 'בחר משפחה לשליחות';
+      
+      // Populate orders list
+      const ordersList = document.getElementById('modal-orders-list');
+      ordersList.innerHTML = orders.map(o => `
+        <div class="order-info-item">
+          <div class="order-color-dot" style="background: ${o.color}"></div>
+          <div class="order-info-text"><strong>${o.family}</strong> הזמינו מ${o.restaurant}</div>
+        </div>
+      `).join('');
+      
+      // Populate time matrix
+      const matrix = document.getElementById('modal-time-matrix');
+      matrix.innerHTML = orders.map(o => {
+        const dist = getCourierOrderDistance(courier, o);
+        const secs = Math.round(distanceToSeconds(dist));
+        const time = formatTime(secs);
+        
+        const assignedTo = Object.entries(gameState.assignments).find(([_, oId]) => oId === o.id);
+        const isAssignedToThis = assignedTo && parseInt(assignedTo[0]) === courierId;
+        const isAssignedToOther = assignedTo && parseInt(assignedTo[0]) !== courierId;
+        
+        let rowClass = 'matrix-row';
+        if (isAssignedToThis) rowClass += ' assigned';
+        if (isAssignedToOther) rowClass += ' assigned-other';
+        
+        const assignedCourier = isAssignedToOther ? couriers.find(c => c.id === parseInt(assignedTo[0])) : null;
+        
+        return `
+          <div class="${rowClass}" onclick="${!isAssignedToOther ? `assignOrder(${o.id})` : ''}">
+            <div class="matrix-row-info">
+              <div class="matrix-family-dot" style="background: ${o.color}"></div>
+              <div>
+                <div class="matrix-family-name">${o.family}</div>
+                <div class="matrix-restaurant">דרך ${o.restaurant}</div>
+              </div>
+            </div>
+            <div class="matrix-time">
+              <span>⏱️ ${time}</span>
+              <button class="matrix-select-btn">בחר</button>
+              <span class="assigned-badge">${isAssignedToThis ? '✓ משובץ' : (isAssignedToOther ? assignedCourier.name : '')}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('courier-modal').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('courier-modal').classList.remove('show');
+      gameState.selectedCourier = null;
+      updateVisuals();
+    }
+
+    function assignOrder(orderId) {
+      if (!gameState.selectedCourier) return;
+      
+      // Remove if already assigned to someone else
+      Object.keys(gameState.assignments).forEach(cId => {
+        if (gameState.assignments[cId] === orderId) {
+          delete gameState.assignments[cId];
+        }
+      });
+      
+      gameState.assignments[gameState.selectedCourier] = orderId;
+      
+      updateUI();
+      updateVisuals();
+      
+      // Show hint
+      const order = orders.find(o => o.id === orderId);
+      const courier = couriers.find(c => c.id === gameState.selectedCourier);
+      showHint(`✓ ${courier.name} ישלח ל${order.family} | 💡 טיפ: אולי שליח אחר יגיע מהר יותר?`);
+      
+      closeModal();
+      
+      // Check if all assigned
+      if (Object.keys(gameState.assignments).length === couriers.length) {
+        document.getElementById('btn-start-delivery').disabled = false;
+        document.getElementById('status-message').textContent = '🎉 כל השליחים שובצו! לחץ "הפעל" לראות את המשלוחים';
+      }
+    }
+
+    function showHint(text) {
+      const statusMsg = document.getElementById('status-message');
+      statusMsg.innerHTML = text;
+      statusMsg.style.background = 'linear-gradient(135deg, #fff3e0, #ffe0b2)';
+      statusMsg.style.padding = '10px 15px';
+      statusMsg.style.borderRadius = '12px';
+      statusMsg.style.border = '1px solid #FFB74D';
+      
+      setTimeout(() => {
+        statusMsg.style.background = 'transparent';
+        statusMsg.style.padding = '0';
+        statusMsg.style.border = 'none';
+        if (Object.keys(gameState.assignments).length < couriers.length) {
+          statusMsg.textContent = '👆 לחץ על אופנוע כדי לבחור שליח ולראות את זמני ההגעה';
+        }
+      }, 4000);
+    }
+
+    // ==================== UI UPDATES ====================
+    function updateUI() {
+      const assigned = Object.keys(gameState.assignments).length;
+      document.getElementById('stat-assigned').textContent = `${assigned}/4`;
+      
+      const totalDist = getTotalDistance();
+      const totalSecs = Math.round(distanceToSeconds(totalDist));
+      document.getElementById('stat-time').textContent = formatTime(totalSecs);
+    }
+
+    function updateVisuals() {
+      // Update courier ring highlights
+      courierMeshes.forEach(mesh => {
+        const isSelected = mesh.courierId === gameState.selectedCourier;
+        const isAssigned = gameState.assignments[mesh.courierId] !== undefined;
+        
+        if (mesh.ringMat) {
+          if (isSelected) {
+            mesh.ringMat.alpha = 0.9;
+            mesh.ringMat.emissiveColor = BABYLON.Color3.FromHexString('#FFD700');
+          } else if (isAssigned) {
+            mesh.ringMat.alpha = 0.6;
+            mesh.ringMat.emissiveColor = BABYLON.Color3.FromHexString('#4CAF50');
+          } else {
+            mesh.ringMat.alpha = 0;
+          }
+        }
+      });
+      
+      // Update assignment lines
+      Object.values(assignmentLines).forEach(line => line.dispose());
+      assignmentLines = {};
+      
+      Object.entries(gameState.assignments).forEach(([courierId, orderId]) => {
+        const courier = couriers.find(c => c.id === parseInt(courierId));
+        const order = orders.find(o => o.id === orderId);
+        const courierMesh = courierMeshes.find(m => m.courierId === parseInt(courierId));
+        
+        if (courier && order && courierMesh) {
+          const startPos = courierMesh.position;
+          const points = [
+            new BABYLON.Vector3(startPos.x, 2, startPos.z),
+            new BABYLON.Vector3(order.restX, 2, order.restZ),
+            new BABYLON.Vector3(order.custX, 2, order.custZ)
+          ];
+          
+          const tube = BABYLON.MeshBuilder.CreateTube("line_" + courierId, {
+            path: points,
+            radius: 0.28,
+            tessellation: 12,
+            cap: BABYLON.Mesh.CAP_ALL
+          }, scene);
+          
+          const tubeMat = new BABYLON.StandardMaterial("tubeMat_" + courierId, scene);
+          tubeMat.diffuseColor = BABYLON.Color3.FromHexString(courier.color);
+          tubeMat.emissiveColor = BABYLON.Color3.FromHexString(courier.color).scale(0.5);
+          tubeMat.alpha = 0.85;
+          tube.material = tubeMat;
+          
+          assignmentLines[courierId] = tube;
+        }
+      });
+    }
+
+    // ==================== DELIVERY ANIMATION ====================
+    function startDeliveryAnimation() {
+      if (Object.keys(gameState.assignments).length !== couriers.length) return;
+      
+      gameState.isAnimating = true;
+      gameState.isComplete = true;
+      document.getElementById('btn-start-delivery').disabled = true;
+      document.getElementById('status-message').textContent = '🚀 השליחים בדרכם...';
+      
+      let completed = 0;
+      
+      Object.entries(gameState.assignments).forEach(([courierId, orderId]) => {
+        const courierMesh = courierMeshes.find(m => m.courierId === parseInt(courierId));
+        const order = orders.find(o => o.id === orderId);
+        
+        if (courierMesh && order) {
+          const timeline = gsap.timeline({
+            onComplete: () => {
+              completed++;
+              if (completed === couriers.length) {
+                setTimeout(showCelebration, 500);
+              }
+            }
+          });
+          
+          // Go to restaurant
+          timeline.to(courierMesh.position, {
+            x: order.restX,
+            z: order.restZ,
+            duration: 2,
+            ease: "power2.inOut",
+            onUpdate: () => {
+              const dx = order.restX - courierMesh.position.x;
+              const dz = order.restZ - courierMesh.position.z;
+              if (Math.abs(dx) > 0.1 || Math.abs(dz) > 0.1) {
+                courierMesh.rotation.y = Math.atan2(dx, dz);
+              }
+            }
+          });
+          
+          // Wait at restaurant
+          timeline.to({}, { duration: 0.5 });
+          
+          // Go to customer
+          timeline.to(courierMesh.position, {
+            x: order.custX,
+            z: order.custZ,
+            duration: 2,
+            ease: "power2.inOut",
+            onUpdate: () => {
+              const dx = order.custX - courierMesh.position.x;
+              const dz = order.custZ - courierMesh.position.z;
+              if (Math.abs(dx) > 0.1 || Math.abs(dz) > 0.1) {
+                courierMesh.rotation.y = Math.atan2(dx, dz);
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // ==================== CELEBRATION ====================
+    function showCelebration() {
+      const t0 = performance.now();
+      const optimal = calculateOptimalSolution();
+      const t1 = performance.now();
+      gameState.algorithmTimeMs = t1 - t0;
+      
+      const userDist = getTotalDistance();
+      const userSecs = Math.round(distanceToSeconds(userDist));
+      const optimalSecs = Math.round(distanceToSeconds(optimal.distance));
+      
+      document.getElementById('result-user-time').textContent = formatTime(userSecs);
+      document.getElementById('result-user-sub').textContent = `זמן שיבוץ: ${formatTime(gameState.elapsedTime)}`;
+      document.getElementById('result-optimal-time').textContent = formatTime(optimalSecs);
+      document.getElementById('result-optimal-sub').textContent = `חושב ב-${gameState.algorithmTimeMs.toFixed(2)} ms`;
+      
+      const diff = userSecs - optimalSecs;
+      const diffPercent = ((diff / optimalSecs) * 100).toFixed(1);
+      
+      let message, icon, title;
+      if (diff <= 0) {
+        icon = '🏆';
+        title = 'מושלם!';
+        message = 'מדהים! מצאת את הפתרון האופטימלי בדיוק כמו האלגוריתם ההונגרי!';
+      } else if (diffPercent < 15) {
+        icon = '🎉';
+        title = 'כמעט מושלם!';
+        message = `הפתרון שלך ארוך רק ב-${formatTime(diff)} (${diffPercent}%) מהאופטימלי. יפה מאוד!`;
+      } else {
+        icon = '💪';
+        title = 'סיימת!';
+        message = `הפתרון שלך ארוך ב-${formatTime(diff)} (${diffPercent}%) מהאופטימלי. האלגוריתם ההונגרי מצא דרך מהירה יותר.`;
+      }
+      
+      document.getElementById('celeb-icon').textContent = icon;
+      document.getElementById('celeb-title').textContent = title;
+      document.getElementById('comparison-message').textContent = message;
+      
+      // Show optimal assignments
+      const optimalList = document.getElementById('optimal-list');
+      optimalList.innerHTML = Object.entries(optimal.assignments).map(([cId, oId]) => {
+        const courier = couriers.find(c => c.id === parseInt(cId));
+        const order = orders.find(o => o.id === oId);
+        const dist = getCourierOrderDistance(courier, order);
+        const secs = Math.round(distanceToSeconds(dist));
+        return `
+          <div class="optimal-item">
+            <span style="color: ${courier.color}">●</span>
+            <span>${courier.name} → ${order.family} (${formatTime(secs)})</span>
+          </div>
+        `;
+      }).join('');
+      
+      // Update insight text
+      const savedMinutes = Math.round(diff / 60 * 1000); // Scale for Wolt example
+      document.getElementById('insight-text').innerHTML = `
+        במשחק זה שיבצת רק 4 שליחים וכבר יש הפרש של ${formatTime(Math.abs(diff))}.
+        <br><br>
+        בחברות כמו <strong>וולט</strong> עם אלפי שליחים והזמנות בו-זמנית - זה מתורגם לשעות של חיסכון כל יום!
+        <br><br>
+        כאן נכנס תפקיד <strong>המהנדס תעשייה וניהול</strong> - לבנות ולשפר את האלגוריתמים והמערכות שמייעלים את התהליכים האלה.
+      `;
+      
+      document.getElementById('celebration').classList.add('show');
+    }
+
+    // ==================== RESET ====================
+    function resetGame() {
+      gameState = {
+        started: true,
+        selectedCourier: null,
+        assignments: {},
+        startTime: null,
+        elapsedTime: 0,
+        isAnimating: false,
+        isComplete: false,
+        algorithmTimeMs: 0
+      };
+      
+      if (timerInterval) clearInterval(timerInterval);
+      
+      // Reset UI
+      document.getElementById('stat-assigned').textContent = '0/4';
+      document.getElementById('stat-time').textContent = '00:00';
+      document.getElementById('btn-start-delivery').disabled = true;
+      document.getElementById('status-message').textContent = '👆 לחץ על אופנוע כדי לבחור שליח ולראות את זמני ההגעה';
+      document.getElementById('status-message').style.background = 'transparent';
+      document.getElementById('status-message').style.padding = '0';
+      document.getElementById('status-message').style.border = 'none';
+      
+      // Reset meshes
+      courierMeshes.forEach(mesh => {
+        mesh.position = mesh.originalPosition.clone();
+        mesh.rotation.y = 0;
+      });
+      
+      // Clear lines
+      Object.values(assignmentLines).forEach(line => line.dispose());
+      assignmentLines = {};
+      
+      // Hide overlays
+      document.getElementById('celebration').classList.remove('show');
+      document.getElementById('courier-modal').classList.remove('show');
+      
+      updateVisuals();
+    }
+
+    // ==================== BABYLON.JS SCENE ====================
+    function createScene() {
+      canvas = document.getElementById("renderCanvas");
+      engine = new BABYLON.Engine(canvas, true, { antialias: true });
+      scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.94, 0.96, 0.98, 1);
+      
+      advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+      
+      // Camera - optimized for mobile
+      const isMobile = window.innerWidth < 768;
+      const camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        -Math.PI / 2,
+        isMobile ? Math.PI / 3.5 : Math.PI / 3.2,
+        isMobile ? 100 : 90,
+        BABYLON.Vector3.Zero(),
+        scene
+      );
+      camera.attachControl(canvas, true);
+      camera.lowerRadiusLimit = 70;
+      camera.upperRadiusLimit = 120;
+      camera.lowerBetaLimit = Math.PI / 6;
+      camera.upperBetaLimit = Math.PI / 2.3;
+      camera.wheelPrecision = 15;
+      camera.panningSensibility = isMobile ? 0 : 1000; // Disable panning on mobile
+      
+      // Lighting
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.75;
+      hemi.groundColor = new BABYLON.Color3(0.85, 0.88, 0.95);
+      
+      const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-0.5, -1, 0.3), scene);
+      sun.position = new BABYLON.Vector3(50, 70, -50);
+      sun.intensity = 0.95;
+      
+      const shadowGen = new BABYLON.ShadowGenerator(2048, sun);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 32;
+      shadowGen.darkness = 0.15;
+      
+      // Ground
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 160, height: 160 }, scene);
+      const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+      groundMat.diffuseColor = new BABYLON.Color3(0.9, 0.92, 0.94);
+      ground.material = groundMat;
+      ground.receiveShadows = true;
+      
+      // Create world
+      createRoads(scene);
+      createEnvironment(scene, shadowGen);
+      
+      // Create couriers
+      couriers.forEach(c => {
+        const mesh = createMotorcycle(scene, c, shadowGen);
+        courierMeshes.push(mesh);
+      });
+      
+      // Create orders (restaurants and houses)
+      orders.forEach(o => {
+        createRestaurant(scene, o, shadowGen);
+        createHouse(scene, o, shadowGen);
+      });
+      
+      // Click handler
+      scene.onPointerDown = (evt, pickResult) => {
+        if (gameState.isAnimating || gameState.isComplete) return;
+        if (!gameState.started) return;
+        
+        if (pickResult.hit) {
+          let parent = pickResult.pickedMesh;
+          while (parent && !parent.courierId && !parent.isHouse) {
+            parent = parent.parent;
+          }
+          
+          if (parent?.courierId) {
+            openModal(parent.courierId);
+          }
+        }
+      };
+      
+      return scene;
+    }
+
+    function createRoads(scene) {
+      const roadMat = new BABYLON.StandardMaterial("roadMat", scene);
+      roadMat.diffuseColor = new BABYLON.Color3(0.38, 0.4, 0.45);
+
+      const lineMat = new BABYLON.StandardMaterial("lineMat", scene);
+      lineMat.diffuseColor = new BABYLON.Color3(1, 0.95, 0.4);
+      lineMat.emissiveColor = new BABYLON.Color3(0.15, 0.14, 0.05);
+
+      for (let i = -40; i <= 40; i += 20) {
+        const roadH = BABYLON.MeshBuilder.CreateBox("roadH" + i, { width: 160, height: 0.05, depth: 12 }, scene);
+        roadH.position.set(0, 0.025, i);
+        roadH.material = roadMat;
+
+        const roadV = BABYLON.MeshBuilder.CreateBox("roadV" + i, { width: 12, height: 0.05, depth: 160 }, scene);
+        roadV.position.set(i, 0.025, 0);
+        roadV.material = roadMat;
+
+        for (let j = -75; j <= 75; j += 6) {
+          const lineH = BABYLON.MeshBuilder.CreateBox("lineH", { width: 3.5, height: 0.06, depth: 0.25 }, scene);
+          lineH.position.set(j, 0.06, i);
+          lineH.material = lineMat;
+
+          const lineV = BABYLON.MeshBuilder.CreateBox("lineV", { width: 0.25, height: 0.06, depth: 3.5 }, scene);
+          lineV.position.set(i, 0.06, j);
+          lineV.material = lineMat;
+        }
+      }
+    }
+
+    function createEnvironment(scene, shadowGen) {
+      const treePositions = [[-40,-40],[40,-40],[-40,40],[40,40],[-60,0],[60,0],[0,-60],[0,60],[-60,-35],[60,35]];
+      treePositions.forEach(pos => createTree(scene, pos[0], pos[1], shadowGen));
+
+      for (let x = -30; x <= 30; x += 20) {
+        for (let z = -30; z <= 30; z += 20) {
+          createStreetLight(scene, x + 7, z + 7);
+        }
+      }
+    }
+
+    function createTree(scene, x, z, shadowGen) {
+      const trunk = BABYLON.MeshBuilder.CreateCylinder("trunk", { height: 3.5, diameter: 0.9 }, scene);
+      trunk.position.set(x, 1.75, z);
+      const trunkMat = new BABYLON.StandardMaterial("trunkMat", scene);
+      trunkMat.diffuseColor = new BABYLON.Color3(0.5, 0.35, 0.18);
+      trunk.material = trunkMat;
+      shadowGen.addShadowCaster(trunk);
+
+      const leaves = BABYLON.MeshBuilder.CreateSphere("leaves", { diameter: 6, segments: 8 }, scene);
+      leaves.position.set(x, 5.5, z);
+      leaves.scaling.y = 1.2;
+      const leavesMat = new BABYLON.StandardMaterial("leavesMat", scene);
+      leavesMat.diffuseColor = new BABYLON.Color3(0.35, 0.72, 0.38);
+      leaves.material = leavesMat;
+      shadowGen.addShadowCaster(leaves);
+    }
+
+    function createStreetLight(scene, x, z) {
+      const poleMat = new BABYLON.StandardMaterial("poleMat", scene);
+      poleMat.diffuseColor = new BABYLON.Color3(0.28, 0.28, 0.32);
+
+      const pole = BABYLON.MeshBuilder.CreateCylinder("pole", { height: 9, diameter: 0.4 }, scene);
+      pole.position.set(x, 4.5, z);
+      pole.material = poleMat;
+
+      const arm = BABYLON.MeshBuilder.CreateBox("arm", { width: 3, height: 0.25, depth: 0.25 }, scene);
+      arm.position.set(x + 1.5, 9, z);
+      arm.material = poleMat;
+
+      const bulb = BABYLON.MeshBuilder.CreateSphere("bulb", { diameter: 0.7 }, scene);
+      bulb.position.set(x + 3, 8.7, z);
+      const bulbMat = new BABYLON.StandardMaterial("bulbMat", scene);
+      bulbMat.emissiveColor = new BABYLON.Color3(1, 0.95, 0.75);
+      bulb.material = bulbMat;
+
+      const light = new BABYLON.PointLight("streetLight", new BABYLON.Vector3(x + 3, 8.5, z), scene);
+      light.intensity = 0.35;
+      light.range = 20;
+    }
+
+    function createMotorcycle(scene, courier, shadowGen) {
+      const parent = new BABYLON.TransformNode("courier_" + courier.id, scene);
+      parent.position.set(courier.x, 0, courier.z);
+      parent.courierId = courier.id;
+      parent.originalPosition = new BABYLON.Vector3(courier.x, 0, courier.z);
+
+      const color = BABYLON.Color3.FromHexString(courier.color);
+
+      const bodyMat = new BABYLON.StandardMaterial("bodyMat" + courier.id, scene);
+      bodyMat.diffuseColor = color;
+      bodyMat.specularPower = 64;
+
+      const body = BABYLON.MeshBuilder.CreateBox("body", { width: 1.1, height: 0.65, depth: 2.8 }, scene);
+      body.position.y = 0.85;
+      body.parent = parent;
+      body.material = bodyMat;
+      shadowGen.addShadowCaster(body);
+
+      const tank = BABYLON.MeshBuilder.CreateCylinder("tank", { diameter: 0.75, height: 1.3 }, scene);
+      tank.rotation.x = Math.PI / 2;
+      tank.position.set(0, 1.05, 0.45);
+      tank.parent = parent;
+      tank.material = bodyMat;
+      shadowGen.addShadowCaster(tank);
+
+      const seatMat = new BABYLON.StandardMaterial("seatMat", scene);
+      seatMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+      const seat = BABYLON.MeshBuilder.CreateBox("seat", { width: 0.75, height: 0.28, depth: 1.1 }, scene);
+      seat.position.set(0, 1.28, -0.35);
+      seat.parent = parent;
+      seat.material = seatMat;
+      shadowGen.addShadowCaster(seat);
+
+      const wheelMat = new BABYLON.StandardMaterial("wheelMat", scene);
+      wheelMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+
+      const chromeMat = new BABYLON.StandardMaterial("chromeMat", scene);
+      chromeMat.diffuseColor = new BABYLON.Color3(0.82, 0.82, 0.88);
+      chromeMat.specularPower = 128;
+
+      const createWheel = (zPos) => {
+        const wheel = BABYLON.MeshBuilder.CreateTorus("wheel", { diameter: 1.1, thickness: 0.32, tessellation: 32 }, scene);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(0, 0.55, zPos);
+        wheel.parent = parent;
+        wheel.material = wheelMat;
+        shadowGen.addShadowCaster(wheel);
+
+        const rim = BABYLON.MeshBuilder.CreateCylinder("rim", { diameter: 0.55, height: 0.28 }, scene);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(0, 0.55, zPos);
+        rim.parent = parent;
+        rim.material = chromeMat;
+        return wheel;
+      };
+
+      const frontWheel = createWheel(1.2);
+      const backWheel = createWheel(-1);
+
+      const handlebar = BABYLON.MeshBuilder.CreateCylinder("handlebar", { diameter: 0.09, height: 1.4 }, scene);
+      handlebar.rotation.z = Math.PI / 2;
+      handlebar.position.set(0, 1.55, 1.1);
+      handlebar.parent = parent;
+      handlebar.material = chromeMat;
+
+      const headlight = BABYLON.MeshBuilder.CreateSphere("headlight", { diameter: 0.35 }, scene);
+      headlight.position.set(0, 1.15, 1.45);
+      headlight.parent = parent;
+      const headlightMat = new BABYLON.StandardMaterial("headlightMat", scene);
+      headlightMat.emissiveColor = new BABYLON.Color3(1, 1, 0.8);
+      headlight.material = headlightMat;
+
+      const taillight = BABYLON.MeshBuilder.CreateBox("taillight", { width: 0.55, height: 0.18, depth: 0.12 }, scene);
+      taillight.position.set(0, 0.95, -1.45);
+      taillight.parent = parent;
+      const taillightMat = new BABYLON.StandardMaterial("taillightMat", scene);
+      taillightMat.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1);
+      taillight.material = taillightMat;
+
+      const boxMat = new BABYLON.StandardMaterial("boxMat", scene);
+      boxMat.diffuseColor = new BABYLON.Color3(0.98, 0.98, 0.98);
+
+      const deliveryBox = BABYLON.MeshBuilder.CreateBox("deliveryBox", { width: 1.5, height: 1.2, depth: 1.5 }, scene);
+      deliveryBox.position.set(0, 1.75, -0.95);
+      deliveryBox.parent = parent;
+      deliveryBox.material = boxMat;
+      shadowGen.addShadowCaster(deliveryBox);
+
+      // Selection ring
+      const ring = BABYLON.MeshBuilder.CreateTorus("ring", { diameter: 4.5, thickness: 0.22, tessellation: 64 }, scene);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.15;
+      ring.parent = parent;
+      const ringMat = new BABYLON.StandardMaterial("ringMat", scene);
+      ringMat.emissiveColor = color;
+      ringMat.alpha = 0;
+      ring.material = ringMat;
+      parent.ringMat = ringMat;
+      parent.frontWheel = frontWheel;
+      parent.backWheel = backWheel;
+
+      // Name label
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.width = "80px";
+      rect.height = "28px";
+      rect.cornerRadius = 14;
+      rect.color = "white";
+      rect.thickness = 0;
+      rect.background = courier.color;
+      advancedTexture.addControl(rect);
+      rect.linkWithMesh(parent);
+      rect.linkOffsetY = -70;
+
+      const text = new BABYLON.GUI.TextBlock();
+      text.text = courier.name;
+      text.color = "white";
+      text.fontSize = 14;
+      text.fontWeight = "bold";
+      text.fontFamily = "Heebo";
+      rect.addControl(text);
+      parent.nameLabel = rect;
+
+      // Animation
+      let time = Math.random() * Math.PI * 2;
+      scene.registerBeforeRender(() => {
+        if (!gameState.isAnimating) {
+          time += 0.04;
+          parent.position.y = Math.sin(time * 2) * 0.06;
+        }
+        frontWheel.rotation.x += 0.03;
+        backWheel.rotation.x += 0.03;
+      });
+
+      return parent;
+    }
+
+    function createRestaurant(scene, order, shadowGen) {
+      const parent = new BABYLON.TransformNode("rest_" + order.id, scene);
+      parent.position.set(order.restX, 0, order.restZ);
+
+      const color = BABYLON.Color3.FromHexString(order.color);
+
+      const baseMat = new BABYLON.StandardMaterial("baseMat" + order.id, scene);
+      baseMat.diffuseColor = color.scale(0.88);
+
+      const base = BABYLON.MeshBuilder.CreateBox("base", { width: 5.5, height: 6.5, depth: 5.5 }, scene);
+      base.position.y = 3.25;
+      base.parent = parent;
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+
+      const roofMat = new BABYLON.StandardMaterial("roofMat", scene);
+      roofMat.diffuseColor = new BABYLON.Color3(0.68, 0.22, 0.22);
+
+      const roof = BABYLON.MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: 7.5, height: 3.2, tessellation: 4 }, scene);
+      roof.position.y = 8;
+      roof.rotation.y = Math.PI / 4;
+      roof.parent = parent;
+      roof.material = roofMat;
+      shadowGen.addShadowCaster(roof);
+
+      const doorMat = new BABYLON.StandardMaterial("doorMat", scene);
+      doorMat.diffuseColor = new BABYLON.Color3(0.48, 0.3, 0.14);
+
+      const door = BABYLON.MeshBuilder.CreateBox("door", { width: 1.5, height: 3, depth: 0.15 }, scene);
+      door.position.set(0, 1.5, 2.8);
+      door.parent = parent;
+      door.material = doorMat;
+
+      const windowMat = new BABYLON.StandardMaterial("windowMat", scene);
+      windowMat.diffuseColor = new BABYLON.Color3(0.72, 0.88, 1);
+      windowMat.emissiveColor = new BABYLON.Color3(0.32, 0.42, 0.52);
+
+      for (let i = -1; i <= 1; i += 2) {
+        const win = BABYLON.MeshBuilder.CreateBox("window", { width: 1.1, height: 1.3, depth: 0.12 }, scene);
+        win.position.set(i * 1.6, 4.2, 2.8);
+        win.parent = parent;
+        win.material = windowMat;
+      }
+
+      const signMat = new BABYLON.StandardMaterial("signMat", scene);
+      signMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+      signMat.emissiveColor = color.scale(0.5);
+
+      const sign = BABYLON.MeshBuilder.CreateBox("sign", { width: 4, height: 1.1, depth: 0.28 }, scene);
+      sign.position.set(0, 5.6, 2.95);
+      sign.parent = parent;
+      sign.material = signMat;
+
+      // Name label
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.width = "120px";
+      rect.height = "28px";
+      rect.cornerRadius = 14;
+      rect.color = "white";
+      rect.thickness = 2;
+      rect.background = order.color;
+      advancedTexture.addControl(rect);
+      rect.linkWithMesh(parent);
+      rect.linkOffsetY = -120;
+
+      const text = new BABYLON.GUI.TextBlock();
+      text.text = "🍕 " + order.restaurant;
+      text.color = "white";
+      text.fontSize = 11;
+      text.fontWeight = "bold";
+      text.fontFamily = "Heebo";
+      rect.addControl(text);
+
+      // Floating icon
+      const iconMat = new BABYLON.StandardMaterial("iconMat", scene);
+      iconMat.diffuseColor = color;
+      iconMat.emissiveColor = color.scale(0.6);
+
+      const icon = BABYLON.MeshBuilder.CreateSphere("icon", { diameter: 2 }, scene);
+      icon.position.y = 12;
+      icon.parent = parent;
+      icon.material = iconMat;
+
+      let time = Math.random() * Math.PI * 2;
+      scene.registerBeforeRender(() => {
+        time += 0.025;
+        icon.position.y = 12 + Math.sin(time) * 0.45;
+        icon.rotation.y += 0.015;
+      });
+
+      return parent;
+    }
+
+    function createHouse(scene, order, shadowGen) {
+      const parent = new BABYLON.TransformNode("house_" + order.id, scene);
+      parent.position.set(order.custX, 0, order.custZ);
+      parent.isHouse = true;
+      parent.orderId = order.id;
+
+      const color = BABYLON.Color3.FromHexString(order.color);
+
+      const baseMat = new BABYLON.StandardMaterial("houseBaseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.94, 0.9, 0.85);
+
+      const base = BABYLON.MeshBuilder.CreateBox("houseBase", { width: 5, height: 5, depth: 5 }, scene);
+      base.position.y = 2.5;
+      base.parent = parent;
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+
+      const roofMat = new BABYLON.StandardMaterial("houseRoofMat", scene);
+      roofMat.diffuseColor = new BABYLON.Color3(0.58, 0.38, 0.25);
+
+      const roof = BABYLON.MeshBuilder.CreateCylinder("houseRoof", { diameterTop: 0, diameterBottom: 7, height: 2.8, tessellation: 4 }, scene);
+      roof.position.y = 6.2;
+      roof.rotation.y = Math.PI / 4;
+      roof.parent = parent;
+      roof.material = roofMat;
+      shadowGen.addShadowCaster(roof);
+
+      const doorMat = new BABYLON.StandardMaterial("houseDoorMat", scene);
+      doorMat.diffuseColor = color.scale(0.75);
+
+      const door = BABYLON.MeshBuilder.CreateBox("houseDoor", { width: 1.3, height: 2.4, depth: 0.12 }, scene);
+      door.position.set(0, 1.2, 2.55);
+      door.parent = parent;
+      door.material = doorMat;
+
+      const windowMat = new BABYLON.StandardMaterial("houseWindowMat", scene);
+      windowMat.diffuseColor = new BABYLON.Color3(0.62, 0.78, 0.98);
+      windowMat.emissiveColor = new BABYLON.Color3(0.28, 0.38, 0.48);
+
+      for (let i = -1; i <= 1; i += 2) {
+        const win = BABYLON.MeshBuilder.CreateBox("houseWindow", { width: 0.85, height: 0.85, depth: 0.12 }, scene);
+        win.position.set(i * 1.3, 3.5, 2.55);
+        win.parent = parent;
+        win.material = windowMat;
+      }
+
+      // Name label
+      const rect = new BABYLON.GUI.Rectangle();
+      rect.width = "110px";
+      rect.height = "28px";
+      rect.cornerRadius = 14;
+      rect.color = order.color;
+      rect.thickness = 2;
+      rect.background = "white";
+      advancedTexture.addControl(rect);
+      rect.linkWithMesh(parent);
+      rect.linkOffsetY = -100;
+
+      const text = new BABYLON.GUI.TextBlock();
+      text.text = "🏠 " + order.family;
+      text.color = "#333";
+      text.fontSize = 11;
+      text.fontWeight = "bold";
+      text.fontFamily = "Heebo";
+      rect.addControl(text);
+
+      // Floating marker
+      const markerMat = new BABYLON.StandardMaterial("markerMat", scene);
+      markerMat.diffuseColor = color;
+      markerMat.emissiveColor = color.scale(0.45);
+
+      const marker = BABYLON.MeshBuilder.CreateCylinder("marker", { diameterTop: 0.45, diameterBottom: 1.6, height: 2.8 }, scene);
+      marker.position.y = 10;
+      marker.parent = parent;
+      marker.material = markerMat;
+
+      let time = Math.random() * Math.PI * 2;
+      scene.registerBeforeRender(() => {
+        time += 0.03;
+        marker.position.y = 10 + Math.sin(time) * 0.38;
+      });
+
+      return parent;
+    }
+
+    // ==================== INITIALIZATION ====================
+    createScene();
+
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
+    
+    // Handle fullscreen exit
+    document.addEventListener('fullscreenchange', () => {
+      if (engine) engine.resize();
+    });
+  </script>
+</body>
+</html>
