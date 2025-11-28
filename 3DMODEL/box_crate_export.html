@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ייצוא ארגז כלים פתוח להדפסה תלת מימד</title>
+
+  <!-- BabylonJS core -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Serializer – יצוא ל-STL -->
+  <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: #f9fafb;
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      outline: none;
+    }
+
+    #exportPanel {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      direction: rtl;
+    }
+
+    #exportBtn {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    #exportBtn:active {
+      transform: scale(0.96);
+    }
+
+    #status {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="exportPanel">
+    <button id="exportBtn">⬇️ הורד STL – ארגז בלבד</button>
+    <span id="status">ארגז כלים פתוח עם מסגרת ומחיצות (מודל מאוחד).</span>
+  </div>
+
+  <script>
+    const ITEM_WEIGHT = 0;
+    const ITEM_VALUE  = 0;
+
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    let scene;
+    let crateRoot = null;
+
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.03, 0.05, 0.1, 1);
+
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.9;
+      hemi.groundColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.6, -1, -0.3), scene);
+      dir.position = new BABYLON.Vector3(8, 10, 6);
+      dir.intensity = 0.8;
+
+      const arcCam = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(145),
+        BABYLON.Tools.ToRadians(60),
+        12,
+        new BABYLON.Vector3(0, 2, 0),
+        scene
+      );
+      arcCam.attachControl(canvas, true);
+
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 40, height: 40 }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.09, 0.11, 0.16);
+      gMat.specularColor = new BABYLON.Color3(0, 0, 0);
+      ground.material = gMat;
+      ground.receiveShadows = true;
+
+      const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 16;
+
+      crateRoot = createToolboxCrate(scene, shadowGen);
+
+      return scene;
+    }
+
+    // ===== ארגז כלים פתוח – מסגרת + בסיס + מחיצות =====
+    function createToolboxCrate(scene, shadowGen) {
+      const SCALE = 1.2;
+
+      const root = new BABYLON.TransformNode("crateRoot", scene);
+      root.position = new BABYLON.Vector3(0, 0, 0);
+
+      const baseMat = new BABYLON.StandardMaterial("crateBaseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.18, 0.32, 0.45);
+      baseMat.specularColor = new BABYLON.Color3(0.7, 0.7, 0.8);
+
+      const frameMat = new BABYLON.StandardMaterial("crateFrameMat", scene);
+      frameMat.diffuseColor = new BABYLON.Color3(0.35, 0.5, 0.75);
+      frameMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+
+      const dividerMat = new BABYLON.StandardMaterial("crateDividerMat", scene);
+      dividerMat.diffuseColor = new BABYLON.Color3(0.7, 0.75, 0.8);
+      dividerMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+
+      const innerWidth  = 8 * SCALE;
+      const innerDepth  = 6 * SCALE;
+      const frameHeight = 3.0 * SCALE;
+      const frameThickness = 0.3 * SCALE;
+
+      // בסיס
+      const base = BABYLON.MeshBuilder.CreateBox("toolboxBase", {
+        width: innerWidth,
+        height: 0.4 * SCALE,
+        depth: innerDepth
+      }, scene);
+      base.parent = root;
+      base.position.y = 0.2 * SCALE;
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+
+      // מסגרת תחתונה
+      const bottomFrameHeight = 0.25 * SCALE;
+
+      const bottomFront = BABYLON.MeshBuilder.CreateBox("bottomFront", {
+        width: innerWidth,
+        height: bottomFrameHeight,
+        depth: frameThickness
+      }, scene);
+      bottomFront.parent = root;
+      bottomFront.position = new BABYLON.Vector3(0, base.position.y + 0.2 * SCALE, innerDepth / 2);
+      bottomFront.material = frameMat;
+      shadowGen.addShadowCaster(bottomFront);
+
+      const bottomBack = bottomFront.clone("bottomBack");
+      bottomBack.parent = root;
+      bottomBack.position.z = -innerDepth / 2;
+
+      const bottomLeft = BABYLON.MeshBuilder.CreateBox("bottomLeft", {
+        width: frameThickness,
+        height: bottomFrameHeight,
+        depth: innerDepth
+      }, scene);
+      bottomLeft.parent = root;
+      bottomLeft.position = new BABYLON.Vector3(innerWidth / 2, base.position.y + 0.2 * SCALE, 0);
+      bottomLeft.material = frameMat;
+      shadowGen.addShadowCaster(bottomLeft);
+
+      const bottomRight = bottomLeft.clone("bottomRight");
+      bottomRight.parent = root;
+      bottomRight.position.x = -innerWidth / 2;
+
+      // עמודי פינה
+      const cornerBarThickness = 0.35 * SCALE;
+      const cornerPositions = [
+        [ innerWidth / 2, innerDepth / 2],
+        [ innerWidth / 2, -innerDepth / 2],
+        [-innerWidth / 2, innerDepth / 2],
+        [-innerWidth / 2, -innerDepth / 2]
+      ];
+
+      cornerPositions.forEach((p, i) => {
+        const bar = BABYLON.MeshBuilder.CreateBox("cornerBar" + i, {
+          width: cornerBarThickness,
+          height: frameHeight,
+          depth: cornerBarThickness
+        }, scene);
+        bar.parent = root;
+        bar.position = new BABYLON.Vector3(p[0], base.position.y + frameHeight / 2 + 0.1 * SCALE, p[1]);
+        bar.material = frameMat;
+        shadowGen.addShadowCaster(bar);
+      });
+
+      // מסגרת עליונה
+      const topY = base.position.y + frameHeight + 0.2 * SCALE;
+
+      const topFront = BABYLON.MeshBuilder.CreateBox("topFront", {
+        width: innerWidth,
+        height: frameThickness,
+        depth: frameThickness
+      }, scene);
+      topFront.parent = root;
+      topFront.position = new BABYLON.Vector3(0, topY, innerDepth / 2);
+      topFront.material = frameMat;
+      shadowGen.addShadowCaster(topFront);
+
+      const topBack = topFront.clone("topBack");
+      topBack.parent = root;
+      topBack.position.z = -innerDepth / 2;
+
+      const topLeft = BABYLON.MeshBuilder.CreateBox("topLeft", {
+        width: frameThickness,
+        height: frameThickness,
+        depth: innerDepth
+      }, scene);
+      topLeft.parent = root;
+      topLeft.position = new BABYLON.Vector3(innerWidth / 2, topY, 0);
+      topLeft.material = frameMat;
+      shadowGen.addShadowCaster(topLeft);
+
+      const topRight = topLeft.clone("topRight");
+      topRight.parent = root;
+      topRight.position.x = -innerWidth / 2;
+
+      // מחיצות פנימיות
+      const dividerThickness = 0.2 * SCALE;
+      const dividerHeight = 0.8 * SCALE;
+
+      const thirdWidth = innerWidth / 3;
+      for (let i = -1; i <= 1; i += 2) {
+        const divider = BABYLON.MeshBuilder.CreateBox("dividerLong" + i, {
+          width: dividerThickness,
+          height: dividerHeight,
+          depth: innerDepth - frameThickness * 2
+        }, scene);
+        divider.parent = root;
+        divider.position = new BABYLON.Vector3(i * thirdWidth / 2, base.position.y + dividerHeight / 2, 0);
+        divider.material = dividerMat;
+        shadowGen.addShadowCaster(divider);
+      }
+
+      const dividerCross = BABYLON.MeshBuilder.CreateBox("dividerCross", {
+        width: innerWidth - frameThickness * 2,
+        height: dividerHeight,
+        depth: dividerThickness
+      }, scene);
+      dividerCross.parent = root;
+      dividerCross.position = new BABYLON.Vector3(0, base.position.y + dividerHeight / 2, 0);
+      dividerCross.material = dividerMat;
+      shadowGen.addShadowCaster(dividerCross);
+
+      root.rotation.y = BABYLON.Tools.ToRadians(-20);
+
+      return root;
+    }
+
+    // ===== יצוא ל-STL – עם MergeMeshes כדי שלא יתפרק =====
+    function exportCrateToSTL() {
+      const status = document.getElementById("status");
+
+      if (!crateRoot) {
+        status.textContent = "שגיאה: הארגז עדיין לא נטען.";
+        return;
+      }
+
+      const meshes = crateRoot.getChildMeshes(false);
+      if (!meshes || meshes.length === 0) {
+        status.textContent = "לא נמצאו Meshes עבור הארגז.";
+        return;
+      }
+
+      // מיזוג כל חלקי הארגז למ Mesh אחד
+      const merged = BABYLON.Mesh.MergeMeshes(
+        meshes,
+        true,   // disposeSource
+        true,   // allow32BitsIndices
+        undefined,
+        false,
+        true    // subdivideWithSubMeshes – שומר חומרים
+      );
+
+      const fileName = `toolbox_crate_only_w${ITEM_WEIGHT}_v${ITEM_VALUE}`;
+
+      try {
+        BABYLON.STLExport.CreateSTL(merged, true, fileName);
+        status.textContent =
+          "✅ נוצר קובץ " + fileName + ".stl — הארגז כגוש אחד, מוכן להדפסה.";
+      } catch (e) {
+        console.error(e);
+        status.textContent = "❌ שגיאה ביצוא STL של הארגז.";
+      }
+    }
+
+    // ===== הרצה =====
+    scene = createScene();
+    engine.runRenderLoop(() => {
+      if (scene) scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", exportCrateToSTL);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.key === "1") {
+        exportCrateToSTL();
+      }
+    });
+  </script>
+</body>
+</html>

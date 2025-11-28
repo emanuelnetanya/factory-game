@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ייצוא מסוע להדפסה תלת מימד</title>
+
+  <!-- BabylonJS core -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Serializer – יצוא ל-STL -->
+  <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: #f9fafb;
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      outline: none;
+    }
+
+    #exportPanel {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      direction: rtl;
+    }
+
+    #exportBtn {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #exportBtn:active {
+      transform: scale(0.96);
+    }
+
+    #status {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="exportPanel">
+    <button id="exportBtn">⬇️ הורד STL של המסוע</button>
+    <span id="status">משקל: 4, ערך: 9 — לחץ כדי לייצא STL להדפסה</span>
+  </div>
+
+  <script>
+    // ===== פרמטרים של הפריט (כמו במשחק) =====
+    const ITEM_WEIGHT = 4; // משקל
+    const ITEM_VALUE  = 9; // ערך
+
+    // ===== בסיס BABYLON =====
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    let scene;
+    let conveyorRoot = null; // ה"טופ" של המסוע
+
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.03, 0.05, 0.1, 1);
+
+      // תאורה
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.9;
+      hemi.groundColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.6, -1, -0.3), scene);
+      dir.position = new BABYLON.Vector3(8, 10, 6);
+      dir.intensity = 0.8;
+
+      // מצלמה
+      const arcCam = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(140),
+        BABYLON.Tools.ToRadians(60),
+        8,
+        new BABYLON.Vector3(0, 1.2, 0),
+        scene
+      );
+      arcCam.attachControl(canvas, true);
+
+      // רצפה
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 30, height: 30 }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.09, 0.11, 0.16);
+      gMat.specularColor = new BABYLON.Color3(0, 0, 0);
+      ground.material = gMat;
+      ground.receiveShadows = true;
+
+      // צללים
+      const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 16;
+
+      // יצירת המסוע
+      conveyorRoot = createConveyor(scene, shadowGen);
+
+      return scene;
+    }
+
+    // ===== יצירת מסוע (אותו סטייל כמו במשחק, עם משטח שטוח למוצרים/שואב) =====
+    function createConveyor(scene, shadowGen) {
+      const SCALE = 1.2;
+
+      const root = new BABYLON.TransformNode("conveyorRoot", scene);
+      root.position = new BABYLON.Vector3(0, 0, 0);
+
+      // חומר מתכתי כהה (מסגרת)
+      const frameMat = new BABYLON.StandardMaterial("conveyorFrameMat", scene);
+      frameMat.diffuseColor = new BABYLON.Color3(0.4, 0.4, 0.45);
+      frameMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+      frameMat.specularPower = 64;
+
+      // חומר גומי/חגורת מסוע
+      const beltMat = new BABYLON.StandardMaterial("conveyorBeltMat", scene);
+      beltMat.diffuseColor = new BABYLON.Color3(0.12, 0.12, 0.15);
+      beltMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+      beltMat.specularPower = 32;
+
+      // חומר צבעוני לרולרים ומעקות
+      const accentMat = new BABYLON.StandardMaterial("conveyorAccentMat", scene);
+      accentMat.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.9);
+      accentMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+      accentMat.specularPower = 48;
+
+      // מסגרת תחתונה
+      const frame = BABYLON.MeshBuilder.CreateBox("conveyorFrame", {
+        width: 2.5 * SCALE,
+        height: 0.3 * SCALE,
+        depth: 1.0 * SCALE
+      }, scene);
+      frame.parent = root;
+      frame.position.y = 0.15 * SCALE;
+      frame.material = frameMat;
+      shadowGen.addShadowCaster(frame);
+
+      // חגורת המסוע (משטח שטוח לשואב ולמוצרים)
+      const belt = BABYLON.MeshBuilder.CreateBox("conveyorBelt", {
+        width: 2.3 * SCALE,
+        height: 0.1 * SCALE,
+        depth: 0.85 * SCALE
+      }, scene);
+      belt.parent = root;
+      belt.position.y = 0.35 * SCALE;
+      belt.material = beltMat;
+      shadowGen.addShadowCaster(belt);
+
+      // רולרים (3 גלילים לאורך)
+      const rollerZ = 0;
+      const rollerPositions = [-1, 0, 1]; // לאורך ה-X
+      rollerPositions.forEach((dx, i) => {
+        const roller = BABYLON.MeshBuilder.CreateCylinder("conveyorRoller" + i, {
+          diameter: 0.25 * SCALE,
+          height: 0.9 * SCALE,
+          tessellation: 24
+        }, scene);
+        roller.parent = root;
+        roller.position = new BABYLON.Vector3(dx * 0.8 * SCALE, 0.15 * SCALE, rollerZ);
+        roller.rotation.x = Math.PI / 2;
+        roller.material = accentMat;
+        shadowGen.addShadowCaster(roller);
+      });
+
+      // מעקות צד (ימין/שמאל) - מונעים נפילה של מוצרים
+      const railOffsetZ = 0.5 * SCALE;
+      [ -railOffsetZ, railOffsetZ ].forEach((z, idx) => {
+        const rail = BABYLON.MeshBuilder.CreateBox("conveyorRail" + idx, {
+          width: 2.5 * SCALE,
+          height: 0.15 * SCALE,
+          depth: 0.08 * SCALE
+        }, scene);
+        rail.parent = root;
+        rail.position = new BABYLON.Vector3(0, 0.45 * SCALE, z);
+        rail.material = accentMat;
+        shadowGen.addShadowCaster(rail);
+      });
+
+      // רגליים (4 רגלי מסוע)
+      const legMat = new BABYLON.StandardMaterial("conveyorLegMat", scene);
+      legMat.diffuseColor = new BABYLON.Color3(0.35, 0.38, 0.42);
+      legMat.specularColor = new BABYLON.Color3(0.7, 0.7, 0.8);
+
+      const legHeight = 0.4 * SCALE;
+      const legPositions = [
+        { x:  1.1 * SCALE, z:  0.4 * SCALE },
+        { x: -1.1 * SCALE, z:  0.4 * SCALE },
+        { x:  1.1 * SCALE, z: -0.4 * SCALE },
+        { x: -1.1 * SCALE, z: -0.4 * SCALE }
+      ];
+
+      legPositions.forEach((p, i) => {
+        const leg = BABYLON.MeshBuilder.CreateCylinder("conveyorLeg" + i, {
+          diameter: 0.15 * SCALE,
+          height: legHeight
+        }, scene);
+        leg.parent = root;
+        leg.position = new BABYLON.Vector3(p.x, legHeight / 2, p.z);
+        leg.material = legMat;
+        shadowGen.addShadowCaster(leg);
+      });
+
+      // קצת רוטציה למראה יפה במצלמה
+      root.rotation.y = BABYLON.Tools.ToRadians(-25);
+
+      return root;
+    }
+
+    // ===== יצוא ל-STL =====
+    function exportConveyorToSTL() {
+      const status = document.getElementById("status");
+
+      if (!conveyorRoot) {
+        status.textContent = "שגיאה: המסוע עדיין לא נטען.";
+        return;
+      }
+
+      const meshes = conveyorRoot.getChildMeshes(false);
+
+      if (!meshes || meshes.length === 0) {
+        status.textContent = "לא נמצאו Meshes עבור המסוע.";
+        return;
+      }
+
+      // שם קובץ כולל משקל וערך (כמו תווית)
+      const fileName = `conveyor_w${ITEM_WEIGHT}_v${ITEM_VALUE}`;
+
+      try {
+        BABYLON.STLExport.CreateSTL(meshes, true, fileName);
+        status.textContent =
+          "✅ נוצר קובץ " +
+          fileName +
+          ".stl — משקל: " +
+          ITEM_WEIGHT +
+          ", ערך: " +
+          ITEM_VALUE +
+          ". בדוק בתיקיית ההורדות.";
+      } catch (e) {
+        console.error(e);
+        status.textContent = "❌ אירעה שגיאה ביצוא STL (בדוק קונסול).";
+      }
+    }
+
+    // ===== הפעלת סצנה =====
+    scene = createScene();
+    engine.runRenderLoop(() => {
+      if (scene) scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+
+    // כפתור יצוא
+    document.getElementById("exportBtn").addEventListener("click", exportConveyorToSTL);
+
+    // קיצור מקשים – Ctrl+E ליצוא
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
+        exportConveyorToSTL();
+      }
+    });
+  </script>
+</body>
+</html>

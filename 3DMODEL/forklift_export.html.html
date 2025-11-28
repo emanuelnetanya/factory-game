@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ייצוא מלגזה להדפסה תלת מימד</title>
+
+  <!-- BabylonJS core -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Serializer – מאפשר יצוא ל-STL -->
+  <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #111827;
+      color: #f9fafb;
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      outline: none;
+    }
+
+    #exportPanel {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      direction: rtl;
+    }
+
+    #exportBtn {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #exportBtn:active {
+      transform: scale(0.96);
+    }
+
+    #status {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="exportPanel">
+    <button id="exportBtn">⬇️ הורד STL של המלגזה</button>
+    <span id="status">לחץ כדי לייצא קובץ להדפסה תלת מימדית</span>
+  </div>
+
+  <script>
+    // ===== בסיס BABYLON =====
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    let scene;
+    let forkliftRoot = null; // ה"טופ" של המלגזה
+
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.05, 0.07, 0.12, 1);
+
+      // תאורה
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.9;
+      hemi.groundColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.5, -1, -0.2), scene);
+      dir.position = new BABYLON.Vector3(10, 12, 8);
+      dir.intensity = 0.7;
+
+      // מצלמה
+      const camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(135),
+        BABYLON.Tools.ToRadians(60),
+        8,
+        new BABYLON.Vector3(0, 1.2, 0),
+        scene
+      );
+      camera.attachControl(canvas, true);
+
+      // רצפה
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 30, height: 30 }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.11, 0.13, 0.18);
+      gMat.specularColor = new BABYLON.Color3(0, 0, 0);
+      ground.material = gMat;
+      ground.receiveShadows = true;
+
+      // צללים
+      const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 16;
+
+      // יצירת המלגזה
+      forkliftRoot = createForklift(scene, shadowGen);
+
+      return scene;
+    }
+
+    // ===== יצירת מלגזה (אותו סטייל כמו במשחק) =====
+    function createForklift(scene, shadowGen) {
+      const SCALE = 1.2;
+
+      const root = new BABYLON.TransformNode("forkliftRoot", scene);
+      root.position = new BABYLON.Vector3(0, 0, 0);
+
+      // חומר גוף (צהוב תעשייתי)
+      const bodyMat = new BABYLON.StandardMaterial("forkliftBodyMat", scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(0.95, 0.7, 0.15);
+      bodyMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+      bodyMat.specularPower = 64;
+
+      // חומר מתכת
+      const metalMat = new BABYLON.StandardMaterial("forkliftMetalMat", scene);
+      metalMat.diffuseColor = new BABYLON.Color3(0.3, 0.35, 0.4);
+      metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+      metalMat.specularPower = 96;
+
+      // חומר גלגלים
+      const wheelMat = new BABYLON.StandardMaterial("forkliftWheelMat", scene);
+      wheelMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.1);
+      wheelMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+      // גוף תחתון
+      const body = BABYLON.MeshBuilder.CreateBox("forkliftBody", {
+        width: 1.0 * SCALE,
+        height: 0.7 * SCALE,
+        depth: 1.4 * SCALE
+      }, scene);
+      body.parent = root;
+      body.position.y = 0.7 * SCALE * 0.5 + 0.2;
+      body.material = bodyMat;
+      shadowGen.addShadowCaster(body);
+
+      // תא נהג
+      const cab = BABYLON.MeshBuilder.CreateBox("forkliftCab", {
+        width: 0.9 * SCALE,
+        height: 0.6 * SCALE,
+        depth: 0.6 * SCALE
+      }, scene);
+      cab.parent = root;
+      cab.position = new BABYLON.Vector3(0, body.position.y + 0.6 * SCALE * 0.5, -0.3 * SCALE);
+      cab.material = bodyMat;
+      shadowGen.addShadowCaster(cab);
+
+      // גג
+      const roof = BABYLON.MeshBuilder.CreateBox("forkliftRoof", {
+        width: 1.0 * SCALE,
+        height: 0.08 * SCALE,
+        depth: 0.8 * SCALE
+      }, scene);
+      roof.parent = root;
+      roof.position = new BABYLON.Vector3(0, cab.position.y + 0.6 * SCALE * 0.5 + 0.08 * SCALE, -0.2 * SCALE);
+      roof.material = metalMat;
+      shadowGen.addShadowCaster(roof);
+
+      // מַסט (עמוד קדמי)
+      const mast = BABYLON.MeshBuilder.CreateBox("forkliftMast", {
+        width: 0.15 * SCALE,
+        height: 1.2 * SCALE,
+        depth: 0.15 * SCALE
+      }, scene);
+      mast.parent = root;
+      mast.position = new BABYLON.Vector3(0, body.position.y + 0.1 * SCALE, 0.75 * SCALE);
+      mast.material = metalMat;
+      shadowGen.addShadowCaster(mast);
+
+      // זרועות (Forks)
+      const forkLength = 0.9 * SCALE;
+      for (let dx of [-0.25, 0.25]) {
+        const fork = BABYLON.MeshBuilder.CreateBox("forkliftFork", {
+          width: 0.12 * SCALE,
+          height: 0.06 * SCALE,
+          depth: forkLength
+        }, scene);
+        fork.parent = root;
+        fork.position = new BABYLON.Vector3(dx * SCALE, 0.25 * SCALE, 1.1 * SCALE);
+        fork.material = metalMat;
+        shadowGen.addShadowCaster(fork);
+      }
+
+      // גלגלים – קדמי/אחורי, ימין/שמאל
+      const wheelRadius = 0.25 * SCALE;
+      const wheelWidth  = 0.18 * SCALE;
+
+      const wheelPositions = [
+        // קדמיים
+        { x: -0.5 * SCALE, z:  0.5 * SCALE },
+        { x:  0.5 * SCALE, z:  0.5 * SCALE },
+        // אחוריים
+        { x: -0.5 * SCALE, z: -0.5 * SCALE },
+        { x:  0.5 * SCALE, z: -0.5 * SCALE }
+      ];
+
+      wheelPositions.forEach((p, i) => {
+        const wheel = BABYLON.MeshBuilder.CreateCylinder("forkliftWheel" + i, {
+          diameter: 2 * wheelRadius,
+          height: wheelWidth,
+          tessellation: 24
+        }, scene);
+        wheel.parent = root;
+        wheel.position = new BABYLON.Vector3(p.x, wheelRadius, p.z);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.material = wheelMat;
+        shadowGen.addShadowCaster(wheel);
+      });
+
+      // קצת רוטציה כדי שייראה יפה במצלמה
+      root.rotation.y = BABYLON.Tools.ToRadians(-20);
+
+      return root;
+    }
+
+    // ===== יצוא ל-STL =====
+    function exportForkliftToSTL() {
+      const status = document.getElementById("status");
+
+      if (!forkliftRoot) {
+        status.textContent = "שגיאה: המלגזה עדיין לא נטענה.";
+        return;
+      }
+
+      // כל הרכיבים של המלגזה (קופסאות, גלגלים וכו')
+      const meshes = forkliftRoot.getChildMeshes(false);
+
+      if (!meshes || meshes.length === 0) {
+        status.textContent = "לא נמצאו Meshes עבור המלגזה.";
+        return;
+      }
+
+      const fileName = "forklift_model";
+
+      try {
+        BABYLON.STLExport.CreateSTL(meshes, true, fileName);
+        status.textContent = "✅ נוצר קובץ " + fileName + ".stl – בדוק בתיקיית ההורדות.";
+      } catch (e) {
+        console.error(e);
+        status.textContent = "❌ אירעה שגיאה ביצוא STL (בדוק קונסול).";
+      }
+    }
+
+    // ===== הפעלת סצנה =====
+    scene = createScene();
+    engine.runRenderLoop(() => {
+      if (scene) scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+
+    // כפתור יצוא
+    document.getElementById("exportBtn").addEventListener("click", exportForkliftToSTL);
+
+    // קיצור מקשים – Ctrl+E ליצוא
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
+        exportForkliftToSTL();
+      }
+    });
+  </script>
+</body>
+</html>

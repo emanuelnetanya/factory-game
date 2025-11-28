@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ייצוא מצלמת QC להדפסה תלת מימד</title>
+
+  <!-- BabylonJS core -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Serializer – יצוא ל-STL -->
+  <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: #f9fafb;
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      outline: none;
+    }
+
+    #exportPanel {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      direction: rtl;
+    }
+
+    #exportBtn {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #exportBtn:active {
+      transform: scale(0.96);
+    }
+
+    #status {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="exportPanel">
+    <button id="exportBtn">⬇️ הורד STL של מצלמת QC</button>
+    <span id="status">משקל: 2, ערך: 6 — לחץ כדי לייצא STL להדפסה</span>
+  </div>
+
+  <script>
+    // ===== פרמטרים של הפריט (כמו במשחק) =====
+    const ITEM_WEIGHT = 2; // משקל
+    const ITEM_VALUE  = 6; // ערך
+
+    // ===== בסיס BABYLON =====
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    let scene;
+    let cameraRoot = null; // ה"טופ" של מצלמת ה-QC
+
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.03, 0.05, 0.1, 1);
+
+      // תאורה
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.9;
+      hemi.groundColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.6, -1, -0.3), scene);
+      dir.position = new BABYLON.Vector3(8, 10, 6);
+      dir.intensity = 0.8;
+
+      // מצלמה (view)
+      const arcCam = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(145),
+        BABYLON.Tools.ToRadians(60),
+        6,
+        new BABYLON.Vector3(0, 1.0, 0),
+        scene
+      );
+      arcCam.attachControl(canvas, true);
+
+      // רצפה
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 20, height: 20 }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.09, 0.11, 0.16);
+      gMat.specularColor = new BABYLON.Color3(0, 0, 0);
+      ground.material = gMat;
+      ground.receiveShadows = true;
+
+      // צללים
+      const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 16;
+
+      // יצירת מצלמת QC
+      cameraRoot = createQCCamera(scene, shadowGen);
+
+      return scene;
+    }
+
+    // ===== יצירת מצלמת QC (אותו סטייל כמו במשחק, עם משטח שטוח לשואב) =====
+    function createQCCamera(scene, shadowGen) {
+      const SCALE = 1.0;
+
+      const root = new BABYLON.TransformNode("qcCameraRoot", scene);
+      root.position = new BABYLON.Vector3(0, 0, 0);
+
+      // חומר גוף (כחול)
+      const bodyMat = new BABYLON.StandardMaterial("qcBodyMat", scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(0.2, 0.6, 0.9);
+      bodyMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+      bodyMat.specularPower = 64;
+
+      // חומר מתכת למתאם / תושבת
+      const metalMat = new BABYLON.StandardMaterial("qcMetalMat", scene);
+      metalMat.diffuseColor = new BABYLON.Color3(0.3, 0.35, 0.4);
+      metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+      metalMat.specularPower = 96;
+
+      // גוף המצלמה – קופסה עם חלק עליון שטוח (מתאים לשואב)
+      const body = BABYLON.MeshBuilder.CreateBox("qcBody", {
+        width: 1.2 * SCALE,
+        height: 0.8 * SCALE,
+        depth: 0.8 * SCALE
+      }, scene);
+      body.parent = root;
+      body.position.y = 0.4 * SCALE;
+      body.material = bodyMat;
+      shadowGen.addShadowCaster(body);
+
+      // עדשה – גליל שיוצא מקדימה
+      const lens = BABYLON.MeshBuilder.CreateCylinder("qcLens", {
+        diameter: 0.5 * SCALE,
+        height: 0.4 * SCALE
+      }, scene);
+      lens.parent = root;
+      lens.position = new BABYLON.Vector3(0, 0.4 * SCALE, 0.6 * SCALE);
+      lens.rotation.x = Math.PI / 2;
+      const lensMat = new BABYLON.StandardMaterial("qcLensMat", scene);
+      lensMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.12);
+      lensMat.specularColor = new BABYLON.Color3(1, 1, 1);
+      lensMat.specularPower = 128;
+      lens.material = lensMat;
+      shadowGen.addShadowCaster(lens);
+
+      // נורת סטטוס (LED ירוק)
+      const led = BABYLON.MeshBuilder.CreateSphere("qcLed", {
+        diameter: 0.12 * SCALE
+      }, scene);
+      led.parent = root;
+      led.position = new BABYLON.Vector3(0.5 * SCALE, 0.7 * SCALE, 0.41 * SCALE);
+      const ledMat = new BABYLON.StandardMaterial("qcLedMat", scene);
+      ledMat.emissiveColor = new BABYLON.Color3(0, 1, 0.3);
+      led.material = ledMat;
+
+      // תושבת הרכבה (mount) – פס מתחת
+      const mount = BABYLON.MeshBuilder.CreateBox("qcMount", {
+        width: 0.6 * SCALE,
+        height: 0.15 * SCALE,
+        depth: 1.0 * SCALE
+      }, scene);
+      mount.parent = root;
+      mount.position.y = 0.075 * SCALE;
+      mount.material = metalMat;
+      shadowGen.addShadowCaster(mount);
+
+      // "תווית" שטוחה בצד האחורי — גם עוד מקום שטוח לשואב
+      const labelMat = new BABYLON.StandardMaterial("qcLabelMat", scene);
+      labelMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.95);
+      labelMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+
+      const labelPlate = BABYLON.MeshBuilder.CreateBox("qcLabelPlate", {
+        width: 0.7 * SCALE,
+        height: 0.3 * SCALE,
+        depth: 0.02 * SCALE
+      }, scene);
+      labelPlate.parent = root;
+      labelPlate.position = new BABYLON.Vector3(0, 0.4 * SCALE, -0.42 * SCALE);
+      labelPlate.material = labelMat;
+      shadowGen.addShadowCaster(labelPlate);
+
+      // רוטציה קלה למראה נוח
+      root.rotation.y = BABYLON.Tools.ToRadians(-30);
+
+      return root;
+    }
+
+    // ===== יצוא ל-STL =====
+    function exportQCCameraToSTL() {
+      const status = document.getElementById("status");
+
+      if (!cameraRoot) {
+        status.textContent = "שגיאה: המצלמה עדיין לא נטענה.";
+        return;
+      }
+
+      const meshes = cameraRoot.getChildMeshes(false);
+
+      if (!meshes || meshes.length === 0) {
+        status.textContent = "לא נמצאו Meshes עבור המצלמה.";
+        return;
+      }
+
+      // שם קובץ כולל משקל וערך (כמו תווית)
+      const fileName = `qc_camera_w${ITEM_WEIGHT}_v${ITEM_VALUE}`;
+
+      try {
+        BABYLON.STLExport.CreateSTL(meshes, true, fileName);
+        status.textContent =
+          "✅ נוצר קובץ " +
+          fileName +
+          ".stl — משקל: " +
+          ITEM_WEIGHT +
+          ", ערך: " +
+          ITEM_VALUE +
+          ". בדוק בתיקיית ההורדות.";
+      } catch (e) {
+        console.error(e);
+        status.textContent = "❌ אירעה שגיאה ביצוא STL (בדוק קונסול).";
+      }
+    }
+
+    // ===== הפעלת סצנה =====
+    scene = createScene();
+    engine.runRenderLoop(() => {
+      if (scene) scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+
+    // כפתור יצוא
+    document.getElementById("exportBtn").addEventListener("click", exportQCCameraToSTL);
+
+    // קיצור מקשים – Ctrl+E ליצוא
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
+        exportQCCameraToSTL();
+      }
+    });
+  </script>
+</body>
+</html>

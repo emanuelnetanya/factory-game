@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ייצוא זרוע רובוטית להדפסה תלת מימד</title>
+
+  <!-- BabylonJS core -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Serializer – מאפשר יצוא ל-STL -->
+  <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: #f9fafb;
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      outline: none;
+    }
+
+    #exportPanel {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      direction: rtl;
+    }
+
+    #exportBtn {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #exportBtn:active {
+      transform: scale(0.96);
+    }
+
+    #status {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="exportPanel">
+    <button id="exportBtn">⬇️ הורד STL של הזרוע הרובוטית</button>
+    <span id="status">לחץ כדי לייצא קובץ להדפסה תלת מימדית</span>
+  </div>
+
+  <script>
+    // ===== בסיס BABYLON =====
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    let scene;
+    let robotRoot = null; // ה"טופ" של הזרוע הרובוטית
+
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.03, 0.05, 0.1, 1);
+
+      // תאורה
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.9;
+      hemi.groundColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.6, -1, -0.3), scene);
+      dir.position = new BABYLON.Vector3(8, 10, 6);
+      dir.intensity = 0.8;
+
+      // מצלמה
+      const camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(135),
+        BABYLON.Tools.ToRadians(60),
+        6,
+        new BABYLON.Vector3(0, 1.2, 0),
+        scene
+      );
+      camera.attachControl(canvas, true);
+
+      // רצפה
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 20, height: 20 }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.09, 0.11, 0.16);
+      gMat.specularColor = new BABYLON.Color3(0, 0, 0);
+      ground.material = gMat;
+      ground.receiveShadows = true;
+
+      // צללים
+      const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 16;
+
+      // יצירת הזרוע הרובוטית
+      robotRoot = createRobotArm(scene, shadowGen);
+
+      return scene;
+    }
+
+    // ===== יצירת זרוע רובוטית (אותו סטייל כמו במשחק) =====
+    function createRobotArm(scene, shadowGen) {
+      const SCALE = 1.0;
+
+      const root = new BABYLON.TransformNode("robotArmRoot", scene);
+      root.position = new BABYLON.Vector3(0, 0, 0);
+
+      // חומר מתכת כהה
+      const metalMat = new BABYLON.StandardMaterial("robotMetalMat", scene);
+      metalMat.diffuseColor = new BABYLON.Color3(0.35, 0.38, 0.42);
+      metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+      metalMat.specularPower = 64;
+
+      // חומר צבעוני לזרוע
+      const colorMat = new BABYLON.StandardMaterial("robotColorMat", scene);
+      colorMat.diffuseColor = new BABYLON.Color3(1.0, 0.76, 0.03); // זהב/צהוב תעשייתי
+      colorMat.specularColor = new BABYLON.Color3(0.9, 0.9, 0.9);
+      colorMat.specularPower = 48;
+
+      // בסיס (Cylinder)
+      const base = BABYLON.MeshBuilder.CreateCylinder("robotBase", {
+        diameter: 1.4 * SCALE,
+        height: 0.35 * SCALE
+      }, scene);
+      base.parent = root;
+      base.position.y = 0.35 * SCALE * 0.5;
+      base.material = metalMat;
+      shadowGen.addShadowCaster(base);
+
+      // מפרק תחתון (Joint 1)
+      const j1 = BABYLON.MeshBuilder.CreateCylinder("robotJoint1", {
+        diameter: 1.0 * SCALE,
+        height: 0.5 * SCALE
+      }, scene);
+      j1.parent = root;
+      j1.position.y = base.position.y + 0.5 * SCALE;
+      j1.material = colorMat;
+      shadowGen.addShadowCaster(j1);
+
+      // זרוע ראשונה (Arm 1)
+      const arm1 = BABYLON.MeshBuilder.CreateBox("robotArm1", {
+        width: 0.35 * SCALE,
+        height: 1.4 * SCALE,
+        depth: 0.35 * SCALE
+      }, scene);
+      arm1.parent = root;
+      arm1.position = new BABYLON.Vector3(0.15 * SCALE, j1.position.y + 0.7 * SCALE, 0);
+      arm1.rotation.z = -0.25;
+      arm1.material = colorMat;
+      shadowGen.addShadowCaster(arm1);
+
+      // מפרק אמצעי (Joint 2)
+      const j2 = BABYLON.MeshBuilder.CreateSphere("robotJoint2", {
+        diameter: 0.5 * SCALE
+      }, scene);
+      j2.parent = root;
+      j2.position = new BABYLON.Vector3(0.3 * SCALE, arm1.position.y + 0.6 * SCALE, 0);
+      j2.material = colorMat;
+      shadowGen.addShadowCaster(j2);
+
+      // זרוע שנייה (Arm 2)
+      const arm2 = BABYLON.MeshBuilder.CreateBox("robotArm2", {
+        width: 0.28 * SCALE,
+        height: 1.0 * SCALE,
+        depth: 0.28 * SCALE
+      }, scene);
+      arm2.parent = root;
+      arm2.position = new BABYLON.Vector3(0.5 * SCALE, j2.position.y + 0.5 * SCALE, 0.2 * SCALE);
+      arm2.rotation.z = 0.4;
+      arm2.material = colorMat;
+      shadowGen.addShadowCaster(arm2);
+
+      // "תופסן" קצה (Gripper)
+      const grip = BABYLON.MeshBuilder.CreateBox("robotGrip", {
+        width: 0.6 * SCALE,
+        height: 0.2 * SCALE,
+        depth: 0.4 * SCALE
+      }, scene);
+      grip.parent = root;
+      grip.position = new BABYLON.Vector3(0.7 * SCALE, arm2.position.y + 0.55 * SCALE, 0.35 * SCALE);
+      grip.material = metalMat;
+      shadowGen.addShadowCaster(grip);
+
+      // רוטציה קלה למראה נוח במצלמה
+      root.rotation.y = BABYLON.Tools.ToRadians(-35);
+
+      return root;
+    }
+
+    // ===== יצוא ל-STL =====
+    function exportRobotToSTL() {
+      const status = document.getElementById("status");
+
+      if (!robotRoot) {
+        status.textContent = "שגיאה: הזרוע עדיין לא נטענה.";
+        return;
+      }
+
+      const meshes = robotRoot.getChildMeshes(false);
+
+      if (!meshes || meshes.length === 0) {
+        status.textContent = "לא נמצאו Meshes עבור הזרוע.";
+        return;
+      }
+
+      const fileName = "robot_arm_model";
+
+      try {
+        BABYLON.STLExport.CreateSTL(meshes, true, fileName);
+        status.textContent = "✅ נוצר קובץ " + fileName + ".stl – בדוק בתיקיית ההורדות.";
+      } catch (e) {
+        console.error(e);
+        status.textContent = "❌ אירעה שגיאה ביצוא STL (בדוק קונסול).";
+      }
+    }
+
+    // ===== הפעלת סצנה =====
+    scene = createScene();
+    engine.runRenderLoop(() => {
+      if (scene) scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+
+    // כפתור יצוא
+    document.getElementById("exportBtn").addEventListener("click", exportRobotToSTL);
+
+    // קיצור מקשים – Ctrl+E ליצוא
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
+        exportRobotToSTL();
+      }
+    });
+  </script>
+</body>
+</html>

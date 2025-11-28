@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ייצוא מכסה ארגז כלים להדפסה תלת מימד</title>
+
+  <!-- BabylonJS core -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Serializer – יצוא ל-STL -->
+  <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: #f9fafb;
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      outline: none;
+    }
+
+    #exportPanel {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      direction: rtl;
+    }
+
+    #exportBtn {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    #exportBtn:active {
+      transform: scale(0.96);
+    }
+
+    #status {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="exportPanel">
+    <button id="exportBtn">⬇️ הורד STL – מכסה בלבד</button>
+    <span id="status">מכסה ארגז כלים – מודל נפרד.</span>
+  </div>
+
+  <script>
+    const ITEM_WEIGHT = 0;
+    const ITEM_VALUE  = 0;
+
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    let scene;
+    let lidRoot = null;
+
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.03, 0.05, 0.1, 1);
+
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.9;
+      hemi.groundColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.6, -1, -0.3), scene);
+      dir.position = new BABYLON.Vector3(8, 10, 6);
+      dir.intensity = 0.8;
+
+      const arcCam = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(145),
+        BABYLON.Tools.ToRadians(60),
+        10,
+        new BABYLON.Vector3(0, 1.5, 0),
+        scene
+      );
+      arcCam.attachControl(canvas, true);
+
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 30, height: 30 }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.09, 0.11, 0.16);
+      gMat.specularColor = new BABYLON.Color3(0, 0, 0);
+      ground.material = gMat;
+      ground.receiveShadows = true;
+
+      const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 16;
+
+      lidRoot = createToolboxLid(scene, shadowGen);
+
+      return scene;
+    }
+
+    // ===== מכסה ארגז כלים =====
+    function createToolboxLid(scene, shadowGen) {
+      const SCALE = 1.2;
+
+      const root = new BABYLON.TransformNode("crateLidRoot", scene);
+
+      const innerWidth  = 8 * SCALE;
+      const innerDepth  = 6 * SCALE;
+
+      const lidThickness = 0.35 * SCALE;
+      const lidFrameThickness = 0.25 * SCALE;
+      const lidRidgeHeight = 0.2 * SCALE;
+
+      const lidBaseMat = new BABYLON.StandardMaterial("lidBaseMat", scene);
+      lidBaseMat.diffuseColor = new BABYLON.Color3(0.2, 0.35, 0.5);
+      lidBaseMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+
+      const lidFrameMat = new BABYLON.StandardMaterial("lidFrameMat", scene);
+      lidFrameMat.diffuseColor = new BABYLON.Color3(0.4, 0.55, 0.8);
+      lidFrameMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+
+      // לוח מכסה
+      const lidPlate = BABYLON.MeshBuilder.CreateBox("lidPlate", {
+        width: innerWidth,
+        height: lidThickness,
+        depth: innerDepth
+      }, scene);
+      lidPlate.parent = root;
+      lidPlate.material = lidBaseMat;
+      shadowGen.addShadowCaster(lidPlate);
+
+      // מסגרת מוגבהת
+      const frontRidge = BABYLON.MeshBuilder.CreateBox("lidFrontRidge", {
+        width: innerWidth,
+        height: lidRidgeHeight,
+        depth: lidFrameThickness
+      }, scene);
+      frontRidge.parent = root;
+      frontRidge.position = new BABYLON.Vector3(0, lidThickness / 2 + lidRidgeHeight / 2, innerDepth / 2 - lidFrameThickness / 2);
+      frontRidge.material = lidFrameMat;
+      shadowGen.addShadowCaster(frontRidge);
+
+      const backRidge = frontRidge.clone("lidBackRidge");
+      backRidge.parent = root;
+      backRidge.position.z = -innerDepth / 2 + lidFrameThickness / 2;
+
+      const leftRidge = BABYLON.MeshBuilder.CreateBox("lidLeftRidge", {
+        width: lidFrameThickness,
+        height: lidRidgeHeight,
+        depth: innerDepth - 2 * lidFrameThickness
+      }, scene);
+      leftRidge.parent = root;
+      leftRidge.position = new BABYLON.Vector3(innerWidth / 2 - lidFrameThickness / 2, lidThickness / 2 + lidRidgeHeight / 2, 0);
+      leftRidge.material = lidFrameMat;
+      shadowGen.addShadowCaster(leftRidge);
+
+      const rightRidge = leftRidge.clone("lidRightRidge");
+      rightRidge.parent = root;
+      rightRidge.position.x = -innerWidth / 2 + lidFrameThickness / 2;
+
+      // קליפסים קטנים מקדימה
+      const latchWidth = 0.5 * SCALE;
+      const latchDepth = 0.3 * SCALE;
+      const latchHeight = 0.18 * SCALE;
+
+      const latchLeft = BABYLON.MeshBuilder.CreateBox("lidLatchLeft", {
+        width: latchWidth,
+        height: latchHeight,
+        depth: latchDepth
+      }, scene);
+      latchLeft.parent = root;
+      latchLeft.position = new BABYLON.Vector3(-innerWidth / 4, -lidThickness / 2 + latchHeight / 2, innerDepth / 2 + latchDepth / 2);
+      latchLeft.material = lidFrameMat;
+      shadowGen.addShadowCaster(latchLeft);
+
+      const latchRight = latchLeft.clone("lidLatchRight");
+      latchRight.parent = root;
+      latchRight.position.x = innerWidth / 4;
+
+      // מיקום יפה
+      root.position = new BABYLON.Vector3(0, 1.0 * SCALE, 0);
+      root.rotation.y = BABYLON.Tools.ToRadians(-20);
+
+      return root;
+    }
+
+    function exportLidToSTL() {
+      const status = document.getElementById("status");
+
+      if (!lidRoot) {
+        status.textContent = "שגיאה: המכסה עדיין לא נטען.";
+        return;
+      }
+
+      const meshes = lidRoot.getChildMeshes(false);
+      if (!meshes || meshes.length === 0) {
+        status.textContent = "לא נמצאו Meshes עבור המכסה.";
+        return;
+      }
+
+      const fileName = `toolbox_lid_only_w${ITEM_WEIGHT}_v${ITEM_VALUE}`;
+
+      try {
+        BABYLON.STLExport.CreateSTL(meshes, true, fileName);
+        status.textContent =
+          "✅ נוצר קובץ " + fileName + ".stl — מכסה בלבד.";
+      } catch (e) {
+        console.error(e);
+        status.textContent = "❌ שגיאה ביצוא STL של המכסה.";
+      }
+    }
+
+    scene = createScene();
+    engine.runRenderLoop(() => {
+      if (scene) scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", exportLidToSTL);
+
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.key === "2") {
+        exportLidToSTL();
+      }
+    });
+  </script>
+</body>
+</html>

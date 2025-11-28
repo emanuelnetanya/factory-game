@@ -269,7 +269,7 @@
     // אם השם שונה – תעדכן כאן:
     const bgAudio = new Audio("factory_ambience.mp3");
     bgAudio.loop = true;            // לופ אינסופי
-    bgAudio.volume = 0.12;          // עוצמה נוחה
+    bgAudio.volume = 0.0;          // עוצמה נוחה
     bgAudio.playbackRate = 0.8;    // "הילוך איטי" קל לאווירה
     bgAudio.preload = "auto";
 
@@ -393,7 +393,7 @@
 
       // תאורה
       const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
-      hemi.intensity = 0.8;
+      hemi.intensity = 0.6;
       hemi.diffuse = new BABYLON.Color3(1, 1, 1);
       hemi.groundColor = new BABYLON.Color3(0.5, 0.5, 0.55);
 
@@ -1222,11 +1222,11 @@
 
       const weldLight = new BABYLON.PointLight("weldLight", position.add(new BABYLON.Vector3(1.2 * SCALE, 3 * SCALE, 0)), scene);
       weldLight.diffuse = new BABYLON.Color3(0.6, 0.8, 1);
-      weldLight.intensity = 8;
-      weldLight.range = 10 * SCALE;
+      weldLight.intensity = 4;
+      weldLight.range = 4 * SCALE;
 
       gsap.to(weldLight, {
-        intensity: 15,
+        intensity: 5,
         duration: 0.1,
         repeat: -1,
         yoyo: true,
@@ -1949,8 +1949,3 @@
   </script>
 </body>
 </html>
-
-
-
-תסביר לי מדוייק איפה בקוד אני מחליש את התאורה שנמצאץ באיזור הגשר משפר את החדות ומחזק את הזיקוקים ותגיד לי בדיוק מה לשנות איזה ערכים 
-

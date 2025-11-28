@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>משחק תרמיל הגב – ציוד תעשייתי PRO</title>
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1565C0" />
+
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Heebo", Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      position: fixed;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%);
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: block;
+      outline: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    /* Rotate device message */
+    #rotateDevice {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #1565C0, #0D47A1);
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #rotateDevice .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: rotateAnim 2s ease-in-out infinite;
+    }
+
+    @keyframes rotateAnim {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(90deg); }
+    }
+
+    #rotateDevice h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    #rotateDevice p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    @media (max-width: 900px) and (orientation: portrait) {
+      #rotateDevice { display: flex; }
+      #renderCanvas, #hud, #topButtons, #sidePanel, #exitBtn { opacity: 0; pointer-events: none; }
+    }
+
+    /* HUD */
+    #hud {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: max(8px, env(safe-area-inset-bottom, 8px));
+      width: calc(100% - 16px);
+      max-width: 600px;
+      background: linear-gradient(135deg, rgba(21, 101, 192, 0.95), rgba(13, 71, 161, 0.95));
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      direction: rtl;
+      z-index: 10;
+      color: white;
+    }
+
+    #hudStats {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      opacity: 0.8;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .stat-value.warning { color: #ffeb3b; }
+    .stat-value.success { color: #69f0ae; }
+
+    #message {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.3;
+      padding: 0 8px;
+    }
+
+    #checkBtn {
+      border: none;
+      padding: 10px 20px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ffffff, #e3f2fd);
+      color: #1565C0;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    #checkBtn:active { 
+      transform: scale(0.95); 
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+
+    /* Top buttons */
+    #topButtons {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top, 12px));
+      right: max(12px, env(safe-area-inset-right, 12px));
+      display: flex;
+      gap: 10px;
+      z-index: 11;
+    }
+
+    .topBtn {
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+      transition: transform 0.15s;
+    }
+
+    .topBtn:active { transform: scale(0.92); }
+
+    #hintBtn {
+      background: linear-gradient(135deg, #ffd54f, #ffb300);
+      color: #263238;
+      font-size: 20px;
+    }
+
+    #helpBtn {
+      background: linear-gradient(135deg, #ffffff, #e3f2fd);
+      color: #1565C0;
+      font-size: 18px;
+    }
+
+    #infoBtn {
+      background: linear-gradient(135deg, #69f0ae, #00c853);
+      color: #1b5e20;
+      font-size: 18px;
+    }
+
+    #exitBtn {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top, 12px));
+      left: max(12px, env(safe-area-inset-left, 12px));
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #ef5350, #c62828);
+      color: #fff;
+      font-weight: 700;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 12;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.15s;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+    }
+
+    #exitBtn.visible { opacity: 1; pointer-events: auto; }
+    #exitBtn:active { transform: scale(0.92); }
+
+    /* Side Panel */
+    #sidePanel {
+      position: fixed;
+      top: 0;
+      right: -320px;
+      width: 300px;
+      max-width: 85vw;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(227,242,253,0.98));
+      backdrop-filter: blur(20px);
+      box-shadow: -4px 0 30px rgba(0,0,0,0.3);
+      z-index: 100;
+      transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      padding: max(16px, env(safe-area-inset-top, 16px)) 16px 16px 16px;
+    }
+
+    #sidePanel.open { right: 0; }
+
+    #sidePanelClose {
+      position: absolute;
+      top: max(12px, env(safe-area-inset-top, 12px));
+      left: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: #e0e0e0;
+      color: #424242;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .panel-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1565C0;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-section {
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .panel-section h3 {
+      font-size: 15px;
+      color: #1565C0;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-section p, .panel-section li {
+      font-size: 13px;
+      color: #37474f;
+      line-height: 1.5;
+    }
+
+    .panel-section ol {
+      padding-right: 18px;
+      margin: 0;
+    }
+
+    .panel-section li { margin-bottom: 4px; }
+
+    .highlight-box {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+
+    .highlight-box p {
+      font-size: 12px;
+      color: #0d47a1;
+    }
+
+    /* Info Panel - Educational */
+    #infoPanel {
+      position: fixed;
+      top: 0;
+      left: -350px;
+      width: 330px;
+      max-width: 90vw;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(232,245,233,0.98));
+      backdrop-filter: blur(20px);
+      box-shadow: 4px 0 30px rgba(0,0,0,0.3);
+      z-index: 100;
+      transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      padding: max(16px, env(safe-area-inset-top, 16px)) 16px 16px 16px;
+    }
+
+    #infoPanel.open { left: 0; }
+
+    #infoPanelClose {
+      position: absolute;
+      top: max(12px, env(safe-area-inset-top, 12px));
+      right: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: #c8e6c9;
+      color: #2e7d32;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .edu-icon {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .edu-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #2e7d32;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .edu-section {
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .edu-section h3 {
+      font-size: 14px;
+      color: #2e7d32;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .edu-section p {
+      font-size: 12px;
+      color: #37474f;
+      line-height: 1.6;
+    }
+
+    .uses-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .use-tag {
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      color: #1b5e20;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .benefit-box {
+      background: linear-gradient(135deg, #fff8e1, #ffecb3);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .benefit-box p {
+      font-size: 13px;
+      color: #e65100;
+      font-weight: 600;
+    }
+
+    /* Overlay for panels */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    #overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Mobile optimizations */
+    @media (max-height: 500px) {
+      #hud {
+        padding: 6px 12px;
+        border-radius: 12px;
+      }
+      .stat-value { font-size: 16px; }
+      .stat-label { font-size: 9px; }
+      #message { font-size: 11px; }
+      #checkBtn { padding: 8px 14px; font-size: 12px; }
+      .topBtn { width: 38px; height: 38px; font-size: 16px; }
+      #exitBtn { width: 38px; height: 38px; font-size: 16px; }
+    }
+
+    @media (max-width: 400px) {
+      #hudStats { gap: 10px; }
+      .stat-value { font-size: 15px; }
+      #checkBtn { padding: 8px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- Rotate device message -->
+  <div id="rotateDevice">
+    <div class="icon">📱</div>
+    <h2>סובב את המכשיר</h2>
+    <p>המשחק עובד במצב שוכב (Landscape)</p>
+  </div>
+
+  <!-- Top buttons -->
+  <div id="topButtons">
+    <button id="infoBtn" class="topBtn">🎓</button>
+    <button id="hintBtn" class="topBtn">💡</button>
+    <button id="helpBtn" class="topBtn">?</button>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="hudStats">
+      <div class="stat">
+        <span class="stat-label">קיבולת</span>
+        <span class="stat-value" id="capacityVal">10</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">משקל</span>
+        <span class="stat-value" id="weightVal">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">ערך</span>
+        <span class="stat-value" id="valueVal">0</span>
+      </div>
+    </div>
+    <span id="message">לחץ על פריטים להוסיף לארגז 🎯</span>
+    <button id="checkBtn">✓ בדיקה</button>
+  </div>
+
+  <button id="exitBtn">✕</button>
+
+  <!-- Overlay -->
+  <div id="overlay"></div>
+
+  <!-- Help Panel (Right) -->
+  <div id="sidePanel">
+    <button id="sidePanelClose">✕</button>
+    <div class="panel-title">
+      <span>🎮</span>
+      <span>איך משחקים?</span>
+    </div>
+    
+    <div class="panel-section">
+      <h3>🎯 המטרה</h3>
+      <p>בחר פריטים לארגז הציוד כך שתקבל את <strong>הערך הכולל הגבוה ביותר</strong>, מבלי לחרוג מהמשקל המקסימלי!</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>👆 פעולות</h3>
+      <ol>
+        <li><strong>לחץ על פריט</strong> - להכניס לארגז</li>
+        <li><strong>לחץ שוב</strong> - להוציא מהארגז</li>
+        <li><strong>בדיקה</strong> - לבדוק את הפתרון</li>
+      </ol>
+    </div>
+
+    <div class="panel-section">
+      <h3>💡 טיפ חכם</h3>
+      <div class="highlight-box">
+        <p>לא תמיד הפריט היקר ביותר הוא הבחירה הטובה! לפעמים שילוב של פריטים קטנים נותן ערך גבוה יותר.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Educational Panel (Left) -->
+  <div id="infoPanel">
+    <button id="infoPanelClose">✕</button>
+    <div class="edu-icon">🏭</div>
+    <div class="edu-title">מה לומדים כאן?</div>
+    
+    <div class="edu-section">
+      <h3>📚 בעיית התרמיל (Knapsack)</h3>
+      <p>זו אחת הבעיות הקלאסיות ביותר באופטימיזציה! איך לבחור פריטים עם משקל וערך שונים כדי למקסם את הערך הכולל בתוך מגבלת משקל.</p>
+    </div>
+
+    <div class="edu-section">
+      <h3>🔧 איפה זה בשימוש?</h3>
+      <div class="uses-list">
+        <span class="use-tag">תכנון ייצור</span>
+        <span class="use-tag">ניהול מלאי</span>
+        <span class="use-tag">לוגיסטיקה</span>
+        <span class="use-tag">תקצוב</span>
+        <span class="use-tag">שרשרת אספקה</span>
+        <span class="use-tag">תזמון משימות</span>
+      </div>
+    </div>
+
+    <div class="edu-section">
+      <h3>🎓 למה תעשייה וניהול?</h3>
+      <p>התואר בהנדסת תעשייה וניהול מלמד בדיוק את זה - <strong>לקבל החלטות חכמות כשהמשאבים מוגבלים</strong>. בין אם זה זמן, כסף, מקום או כוח אדם.</p>
+    </div>
+
+    <div class="edu-section">
+      <div class="benefit-box">
+        <p>🚀 מהנדס תעשייה יודע למצוא את הפתרון האופטימלי!</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== INITIALIZATION =====
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, 2));
+
+    const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const SCALE = IS_MOBILE ? 0.5 : 0.55;
+
+    // ===== GAME DATA =====
+    const CAPACITY = 10;
+    const ITEMS = [
+      { name: "זרוע רובוטית",    emoji: "🤖", weight: 5, value: 10, color: new BABYLON.Color3(1.0, 0.76, 0.03), type: "robotArm" },
+      { name: "מסוע",           emoji: "📦", weight: 4, value: 9,  color: new BABYLON.Color3(0.4, 0.4, 0.45), type: "conveyor" },
+      { name: "מצלמת QC",       emoji: "📷", weight: 2, value: 6,  color: new BABYLON.Color3(0.2, 0.6, 0.9), type: "camera" },
+      { name: "סורק ברקוד",     emoji: "📱", weight: 1, value: 3,  color: new BABYLON.Color3(0.95, 0.3, 0.3), type: "scanner" },
+      { name: "מסך בקרה",       emoji: "🖥️", weight: 3, value: 7,  color: new BABYLON.Color3(0.2, 0.2, 0.25), type: "hmi" },
+      { name: "מלגזה",          emoji: "🚜", weight: 2, value: 5,  color: new BABYLON.Color3(0.95, 0.6, 0.1), type: "forklift" }
+    ];
+
+    let scene, camera, ui;
+    let crateBase;
+    let itemRoots = [];
+    let crateSlots = [];
+    let currentWeight = 0;
+    let currentValue = 0;
+    let bestPossibleValue = 0;
+    let stepsInfo = null;
+
+    // Sound
+    const moveAudio = new Audio("transition-sfx-whoosh-sound-effect-407576.mp3");
+    function playMoveSfx() {
+      try { moveAudio.currentTime = 0; moveAudio.play(); } catch(e) {}
+    }
+
+    // ===== DOM ELEMENTS =====
+    const capacityEl = document.getElementById("capacityVal");
+    const weightEl = document.getElementById("weightVal");
+    const valueEl = document.getElementById("valueVal");
+    const msgEl = document.getElementById("message");
+    const checkBtn = document.getElementById("checkBtn");
+    const hintBtn = document.getElementById("hintBtn");
+    const helpBtn = document.getElementById("helpBtn");
+    const infoBtn = document.getElementById("infoBtn");
+    const exitBtn = document.getElementById("exitBtn");
+    const sidePanel = document.getElementById("sidePanel");
+    const sidePanelClose = document.getElementById("sidePanelClose");
+    const infoPanel = document.getElementById("infoPanel");
+    const infoPanelClose = document.getElementById("infoPanelClose");
+    const overlay = document.getElementById("overlay");
+
+    // ===== FULLSCREEN & MOBILE =====
+    function goFullscreen() {
+      const elem = document.documentElement;
+      if (!document.fullscreenElement) {
+        if (elem.requestFullscreen) elem.requestFullscreen().catch(() => {});
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+      }
+      setTimeout(() => window.scrollTo(0, 1), 100);
+    }
+
+    document.addEventListener("pointerdown", () => {
+      exitBtn.classList.add("visible");
+      goFullscreen();
+    }, { once: true });
+
+    window.addEventListener('resize', () => {
+      engine.resize();
+      goFullscreen();
+    });
+
+    // ===== PANEL CONTROLS =====
+    function openPanel(panel) {
+      panel.classList.add("open");
+      overlay.classList.add("visible");
+    }
+
+    function closeAllPanels() {
+      sidePanel.classList.remove("open");
+      infoPanel.classList.remove("open");
+      overlay.classList.remove("visible");
+    }
+
+    helpBtn.addEventListener("click", () => openPanel(sidePanel));
+    infoBtn.addEventListener("click", () => openPanel(infoPanel));
+    sidePanelClose.addEventListener("click", closeAllPanels);
+    infoPanelClose.addEventListener("click", closeAllPanels);
+    overlay.addEventListener("click", closeAllPanels);
+
+    exitBtn.addEventListener("click", () => {
+      if (confirm("לצאת מהמשחק?")) window.history.back();
+    });
+
+    // ===== HINT SYSTEM =====
+    hintBtn.addEventListener("click", () => {
+      const n = ITEMS.length;
+      let bestMask = 0, bestVal = 0;
+      
+      for (let mask = 0; mask < (1 << n); mask++) {
+        let w = 0, v = 0;
+        for (let i = 0; i < n; i++) {
+          if (mask & (1 << i)) { w += ITEMS[i].weight; v += ITEMS[i].value; }
+        }
+        if (w <= CAPACITY && v > bestVal) { bestVal = v; bestMask = mask; }
+      }
+
+      let toAdd = [], toRemove = [];
+      for (let i = 0; i < n; i++) {
+        const should = (bestMask & (1 << i)) !== 0;
+        const is = itemRoots[i].metadata.selected;
+        if (should && !is) toAdd.push(ITEMS[i].emoji + " " + ITEMS[i].name);
+        if (!should && is) toRemove.push(ITEMS[i].emoji + " " + ITEMS[i].name);
+      }
+
+      if (toRemove.length > 0 && toAdd.length > 0) {
+        msgEl.textContent = `💡 הוצא ${toRemove[0]} ← הוסף ${toAdd[0]}`;
+      } else if (toRemove.length > 0) {
+        msgEl.textContent = `💡 הוצא: ${toRemove[0]}`;
+      } else if (toAdd.length > 0) {
+        msgEl.textContent = `💡 הוסף: ${toAdd[0]}`;
+      } else {
+        msgEl.textContent = "🎉 מצוין! זה הפתרון המושלם!";
+      }
+    });
+
+    // ===== COMPUTE OPTIMAL =====
+    function computeOptimalValue() {
+      let best = 0;
+      const n = ITEMS.length;
+      for (let mask = 0; mask < (1 << n); mask++) {
+        let w = 0, v = 0;
+        for (let i = 0; i < n; i++) {
+          if (mask & (1 << i)) { w += ITEMS[i].weight; v += ITEMS[i].value; }
+        }
+        if (w <= CAPACITY && v > best) best = v;
+      }
+      return best;
+    }
+
+    // ===== CREATE SCENE =====
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.89, 0.93, 0.98, 1);
+
+      // Lights
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.4;
+      hemi.groundColor = new BABYLON.Color3(0.8, 0.85, 0.9);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.5, -1, -0.5), scene);
+      dir.intensity = 0.7;
+      dir.position = new BABYLON.Vector3(10, 20, 10);
+
+      // Shadow
+      const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 16;
+
+      // Camera - optimized for mobile landscape
+      const camRadius = IS_MOBILE ? 22 * SCALE : 20 * SCALE;
+      camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(90),
+        BABYLON.Tools.ToRadians(60),
+        camRadius,
+        new BABYLON.Vector3(0, 3 * SCALE, 0),
+        scene
+      );
+      camera.attachControl(canvas, true);
+      camera.inputs.clear();
+      camera.lowerRadiusLimit = camRadius;
+      camera.upperRadiusLimit = camRadius;
+
+      ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+      createEnvironment(scene, shadowGen);
+      createCrate(scene, shadowGen);
+      createItems(scene, shadowGen);
+      setupInteraction(scene);
+
+      return scene;
+    }
+
+    // ===== ENVIRONMENT =====
+    function createEnvironment(scene, shadowGen) {
+      // Floor
+      const floor = BABYLON.MeshBuilder.CreateGround("floor", { width: 50 * SCALE, height: 35 * SCALE }, scene);
+      const floorMat = new BABYLON.StandardMaterial("floorMat", scene);
+      floorMat.diffuseColor = new BABYLON.Color3(0.92, 0.94, 0.96);
+      floorMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+      floor.material = floorMat;
+      floor.receiveShadows = true;
+      floor.isPickable = false;
+
+      // Grid lines
+      for (let i = -3; i <= 3; i++) {
+        const line = BABYLON.MeshBuilder.CreateBox("gridLine" + i, {
+          width: 50 * SCALE, height: 0.02 * SCALE, depth: 0.08 * SCALE
+        }, scene);
+        line.position.z = i * 2.5 * SCALE;
+        line.position.y = 0.01 * SCALE;
+        const lineMat = new BABYLON.StandardMaterial("lineMat" + i, scene);
+        lineMat.diffuseColor = new BABYLON.Color3(0.7, 0.8, 0.9);
+        lineMat.alpha = 0.5;
+        line.material = lineMat;
+        line.isPickable = false;
+      }
+
+      // Back wall
+      const wall = BABYLON.MeshBuilder.CreateBox("wall", {
+        width: 50 * SCALE, height: 15 * SCALE, depth: 0.3 * SCALE
+      }, scene);
+      wall.position = new BABYLON.Vector3(0, 7.5 * SCALE, -12 * SCALE);
+      const wallMat = new BABYLON.StandardMaterial("wallMat", scene);
+      wallMat.diffuseColor = new BABYLON.Color3(0.95, 0.96, 0.98);
+      wall.material = wallMat;
+      wall.isPickable = false;
+
+      // LED strip
+      const led = BABYLON.MeshBuilder.CreateBox("led", {
+        width: 40 * SCALE, height: 0.2 * SCALE, depth: 0.1 * SCALE
+      }, scene);
+      led.position = new BABYLON.Vector3(0, 12 * SCALE, -11.8 * SCALE);
+      const ledMat = new BABYLON.StandardMaterial("ledMat", scene);
+      ledMat.emissiveColor = new BABYLON.Color3(0.3, 0.7, 1);
+      led.material = ledMat;
+      led.isPickable = false;
+
+      // Table
+      const tableTop = BABYLON.MeshBuilder.CreateBox("tableTop", {
+        width: 28 * SCALE, depth: 14 * SCALE, height: 0.4 * SCALE
+      }, scene);
+      const tableY = 2.5 * SCALE;
+      tableTop.position.y = tableY;
+      const tableMat = new BABYLON.StandardMaterial("tableMat", scene);
+      tableMat.diffuseColor = new BABYLON.Color3(0.96, 0.94, 0.9);
+      tableMat.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+      tableTop.material = tableMat;
+      tableTop.receiveShadows = true;
+      tableTop.isPickable = false;
+
+      // Table legs
+      const legMat = new BABYLON.StandardMaterial("legMat", scene);
+      legMat.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.75);
+      
+      for (let sx of [-1, 1]) {
+        for (let sz of [-1, 1]) {
+          const leg = BABYLON.MeshBuilder.CreateCylinder("leg", {
+            diameter: 0.4 * SCALE, height: tableY
+          }, scene);
+          leg.position = new BABYLON.Vector3(sx * 12 * SCALE, tableY / 2, sz * 5.5 * SCALE);
+          leg.material = legMat;
+          leg.isPickable = false;
+        }
+      }
+
+      // Steps / platforms
+      const stepMat = new BABYLON.StandardMaterial("stepMat", scene);
+      stepMat.diffuseColor = new BABYLON.Color3(0.88, 0.91, 0.95);
+      stepMat.specularColor = new BABYLON.Color3(0.6, 0.6, 0.7);
+
+      const itemsCenterX = -5 * SCALE;
+
+      // Low step
+      const stepLow = BABYLON.MeshBuilder.CreateBox("stepLow", {
+        width: 18 * SCALE, depth: 4 * SCALE, height: 0.4 * SCALE
+      }, scene);
+      stepLow.position = new BABYLON.Vector3(itemsCenterX, tableY + 0.45 * SCALE, 3 * SCALE);
+      stepLow.material = stepMat;
+      stepLow.receiveShadows = true;
+      stepLow.isPickable = false;
+
+      // High step
+      const stepHigh = BABYLON.MeshBuilder.CreateBox("stepHigh", {
+        width: 18 * SCALE, depth: 5 * SCALE, height: 0.8 * SCALE
+      }, scene);
+      stepHigh.position = new BABYLON.Vector3(itemsCenterX, tableY + 0.85 * SCALE, -3 * SCALE);
+      stepHigh.material = stepMat;
+      stepHigh.receiveShadows = true;
+      stepHigh.isPickable = false;
+
+      stepsInfo = {
+        lowTopY: stepLow.position.y + 0.2 * SCALE + 0.1 * SCALE,
+        highTopY: stepHigh.position.y + 0.4 * SCALE + 0.1 * SCALE,
+        lowZ: stepLow.position.z,
+        highZ: stepHigh.position.z,
+        itemsCenterX
+      };
+    }
+
+    // ===== TRANSPARENT CRATE =====
+    function createCrate(scene, shadowGen) {
+      const crateX = 10 * SCALE;
+      const crateY = 2.7 * SCALE;
+
+      // Base plate
+      crateBase = BABYLON.MeshBuilder.CreateBox("crateBase", {
+        width: 8 * SCALE, height: 0.25 * SCALE, depth: 6 * SCALE
+      }, scene);
+      crateBase.position = new BABYLON.Vector3(crateX, crateY, 0);
+      const baseMat = new BABYLON.StandardMaterial("baseMat", scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.7);
+      baseMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+      crateBase.material = baseMat;
+      crateBase.isPickable = false;
+      shadowGen.addShadowCaster(crateBase);
+
+      // Transparent walls
+      const glassMat = new BABYLON.StandardMaterial("glassMat", scene);
+      glassMat.diffuseColor = new BABYLON.Color3(0.6, 0.8, 1);
+      glassMat.specularColor = new BABYLON.Color3(1, 1, 1);
+      glassMat.specularPower = 128;
+      glassMat.alpha = 0.25;
+
+      // Front wall
+      const frontWall = BABYLON.MeshBuilder.CreateBox("frontWall", {
+        width: 8 * SCALE, height: 3.5 * SCALE, depth: 0.1 * SCALE
+      }, scene);
+      frontWall.position = new BABYLON.Vector3(crateX, crateY + 1.75 * SCALE, 3 * SCALE);
+      frontWall.material = glassMat;
+      frontWall.isPickable = false;
+
+      // Back wall
+      const backWall = frontWall.clone("backWall");
+      backWall.position.z = -3 * SCALE;
+
+      // Side walls
+      const sideWall1 = BABYLON.MeshBuilder.CreateBox("sideWall1", {
+        width: 0.1 * SCALE, height: 3.5 * SCALE, depth: 6 * SCALE
+      }, scene);
+      sideWall1.position = new BABYLON.Vector3(crateX + 4 * SCALE, crateY + 1.75 * SCALE, 0);
+      sideWall1.material = glassMat;
+      sideWall1.isPickable = false;
+
+      const sideWall2 = sideWall1.clone("sideWall2");
+      sideWall2.position.x = crateX - 4 * SCALE;
+
+      // Metal frame edges
+      const frameMat = new BABYLON.StandardMaterial("frameMat", scene);
+      frameMat.diffuseColor = new BABYLON.Color3(0.4, 0.55, 0.75);
+      frameMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+
+      const corners = [
+        [4, 3], [4, -3], [-4, 3], [-4, -3]
+      ];
+
+      corners.forEach(([dx, dz], i) => {
+        const edge = BABYLON.MeshBuilder.CreateBox("edge" + i, {
+          width: 0.2 * SCALE, height: 3.5 * SCALE, depth: 0.2 * SCALE
+        }, scene);
+        edge.position = new BABYLON.Vector3(crateX + dx * SCALE, crateY + 1.75 * SCALE, dz * SCALE);
+        edge.material = frameMat;
+        edge.isPickable = false;
+      });
+
+      // Top frame
+      const topFrames = [
+        { w: 8, d: 0.2, x: 0, z: 3 },
+        { w: 8, d: 0.2, x: 0, z: -3 },
+        { w: 0.2, d: 6, x: 4, z: 0 },
+        { w: 0.2, d: 6, x: -4, z: 0 }
+      ];
+
+      topFrames.forEach((f, i) => {
+        const bar = BABYLON.MeshBuilder.CreateBox("topBar" + i, {
+          width: f.w * SCALE, height: 0.2 * SCALE, depth: f.d * SCALE
+        }, scene);
+        bar.position = new BABYLON.Vector3(crateX + f.x * SCALE, crateY + 3.5 * SCALE, f.z * SCALE);
+        bar.material = frameMat;
+        bar.isPickable = false;
+      });
+
+      // Handle
+      const handle = BABYLON.MeshBuilder.CreateTorus("handle", {
+        diameter: 2 * SCALE, thickness: 0.18 * SCALE, tessellation: 24
+      }, scene);
+      handle.position = new BABYLON.Vector3(crateX, crateY + 4.2 * SCALE, 0);
+      handle.rotation.z = Math.PI / 2;
+      handle.material = frameMat;
+      handle.isPickable = false;
+
+      // Slots inside crate
+      const slotCenter = new BABYLON.Vector3(crateX, crateY + 0.3 * SCALE, 0);
+      const slotSpacingX = 2.4 * SCALE;
+      const slotSpacingZ = 1.8 * SCALE;
+
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 3; col++) {
+          const pos = new BABYLON.Vector3(
+            slotCenter.x + (col - 1) * slotSpacingX,
+            slotCenter.y + row * 1.4 * SCALE,
+            slotCenter.z + (row === 0 ? 1 : -1) * slotSpacingZ
+          );
+          crateSlots.push(pos);
+
+          // Visual slot marker
+          const marker = BABYLON.MeshBuilder.CreateBox("marker", {
+            width: 2 * SCALE, height: 0.05 * SCALE, depth: 1.5 * SCALE
+          }, scene);
+          marker.position = new BABYLON.Vector3(pos.x, crateY + 0.15 * SCALE, pos.z);
+          const markerMat = new BABYLON.StandardMaterial("markerMat", scene);
+          markerMat.diffuseColor = new BABYLON.Color3(0.5, 0.7, 0.9);
+          markerMat.alpha = 0.3;
+          marker.material = markerMat;
+          marker.isPickable = false;
+        }
+      }
+
+      // Label
+      const label = new BABYLON.GUI.Rectangle();
+      label.width = "120px";
+      label.height = "32px";
+      label.thickness = 0;
+      label.cornerRadius = 10;
+      label.background = "rgba(255,255,255,0.95)";
+      ui.addControl(label);
+      label.linkWithMesh(crateBase);
+      label.linkOffsetY = -60;
+
+      const labelText = new BABYLON.GUI.TextBlock();
+      labelText.text = "📦 ארגז ציוד";
+      labelText.color = "#1565C0";
+      labelText.fontSize = 14;
+      labelText.fontFamily = "Heebo";
+      labelText.fontWeight = "700";
+      label.addControl(labelText);
+    }
+
+    // ===== ITEMS =====
+    function createItems(scene, shadowGen) {
+      const startX = stepsInfo.itemsCenterX - 5 * SCALE;
+      const gapX = 5 * SCALE;
+      const rowY = [stepsInfo.lowTopY, stepsInfo.highTopY];
+      const rowZ = [stepsInfo.lowZ, stepsInfo.highZ];
+
+      ITEMS.forEach((item, i) => {
+        const row = i < 3 ? 0 : 1;
+        const col = i % 3;
+
+        const root = new BABYLON.TransformNode("itemRoot_" + i, scene);
+        root.position = new BABYLON.Vector3(
+          startX + col * gapX,
+          rowY[row],
+          rowZ[row]
+        );
+
+        buildItemModel(scene, root, item, shadowGen);
+
+        root.metadata = {
+          type: "itemRoot",
+          index: i,
+          selected: false,
+          basePosition: root.position.clone(),
+          slotIndex: null
+        };
+
+        // Item label
+        const rect = new BABYLON.GUI.Rectangle();
+        rect.width = IS_MOBILE ? "95px" : "110px";
+        rect.height = IS_MOBILE ? "38px" : "44px";
+        rect.thickness = 0;
+        rect.cornerRadius = 10;
+        rect.background = "rgba(255,255,255,0.95)";
+        rect.shadowBlur = 8;
+        rect.shadowColor = "rgba(0,0,0,0.15)";
+        ui.addControl(rect);
+        rect.linkWithMesh(root);
+        rect.linkOffsetY = row === 0 ? -55 : -65;
+
+        const stack = new BABYLON.GUI.StackPanel();
+        stack.isVertical = true;
+        rect.addControl(stack);
+
+        const nameTxt = new BABYLON.GUI.TextBlock();
+        nameTxt.text = item.emoji + " " + item.name;
+        nameTxt.color = "#263238";
+        nameTxt.fontSize = IS_MOBILE ? 10 : 11;
+        nameTxt.fontFamily = "Heebo";
+        nameTxt.fontWeight = "600";
+        nameTxt.height = "18px";
+        stack.addControl(nameTxt);
+
+        const statsTxt = new BABYLON.GUI.TextBlock();
+        statsTxt.text = `משקל: ${item.weight} | ערך: ${item.value}`;
+        statsTxt.color = "#546e7a";
+        statsTxt.fontSize = IS_MOBILE ? 9 : 10;
+        statsTxt.fontFamily = "Heebo";
+        statsTxt.height = "16px";
+        stack.addControl(statsTxt);
+
+        itemRoots.push(root);
+      });
+    }
+
+    // ===== BUILD ITEM MODELS =====
+    function buildItemModel(scene, root, item, shadowGen) {
+      const metalMat = new BABYLON.StandardMaterial("metalMat_" + item.type, scene);
+      metalMat.diffuseColor = new BABYLON.Color3(0.35, 0.38, 0.42);
+      metalMat.specularColor = new BABYLON.Color3(0.9, 0.9, 1);
+      metalMat.specularPower = 64;
+
+      const colorMat = new BABYLON.StandardMaterial("colorMat_" + item.type, scene);
+      colorMat.diffuseColor = item.color;
+      colorMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+      colorMat.specularPower = 32;
+
+      if (item.type === "robotArm") {
+        // Base
+        const base = BABYLON.MeshBuilder.CreateCylinder("base", { diameter: 1.4 * SCALE, height: 0.35 * SCALE }, scene);
+        base.parent = root;
+        base.position.y = 0.175 * SCALE;
+        base.material = metalMat;
+        shadowGen.addShadowCaster(base);
+
+        // Joint 1
+        const j1 = BABYLON.MeshBuilder.CreateCylinder("j1", { diameter: 1 * SCALE, height: 0.5 * SCALE }, scene);
+        j1.parent = root;
+        j1.position.y = 0.6 * SCALE;
+        j1.material = colorMat;
+        shadowGen.addShadowCaster(j1);
+
+        // Arm 1
+        const arm1 = BABYLON.MeshBuilder.CreateBox("arm1", { width: 0.35 * SCALE, height: 1.4 * SCALE, depth: 0.35 * SCALE }, scene);
+        arm1.parent = root;
+        arm1.position = new BABYLON.Vector3(0.15 * SCALE, 1.4 * SCALE, 0);
+        arm1.rotation.z = -0.25;
+        arm1.material = colorMat;
+        shadowGen.addShadowCaster(arm1);
+
+        // Joint 2
+        const j2 = BABYLON.MeshBuilder.CreateSphere("j2", { diameter: 0.5 * SCALE }, scene);
+        j2.parent = root;
+        j2.position = new BABYLON.Vector3(0.3 * SCALE, 2 * SCALE, 0);
+        j2.material = colorMat;
+        shadowGen.addShadowCaster(j2);
+
+        // Arm 2
+        const arm2 = BABYLON.MeshBuilder.CreateBox("arm2", { width: 0.28 * SCALE, height: 1 * SCALE, depth: 0.28 * SCALE }, scene);
+        arm2.parent = root;
+        arm2.position = new BABYLON.Vector3(0.5 * SCALE, 2.5 * SCALE, 0.2 * SCALE);
+        arm2.rotation.z = 0.4;
+        arm2.material = colorMat;
+        shadowGen.addShadowCaster(arm2);
+
+        // Gripper
+        const grip = BABYLON.MeshBuilder.CreateBox("grip", { width: 0.6 * SCALE, height: 0.2 * SCALE, depth: 0.4 * SCALE }, scene);
+        grip.parent = root;
+        grip.position = new BABYLON.Vector3(0.7 * SCALE, 2.95 * SCALE, 0.35 * SCALE);
+        grip.material = metalMat;
+        shadowGen.addShadowCaster(grip);
+
+      } else if (item.type === "conveyor") {
+        // Frame
+        const frame = BABYLON.MeshBuilder.CreateBox("frame", { width: 2.5 * SCALE, height: 0.3 * SCALE, depth: 1 * SCALE }, scene);
+        frame.parent = root;
+        frame.position.y = 0.15 * SCALE;
+        frame.material = metalMat;
+        shadowGen.addShadowCaster(frame);
+
+        // Belt
+        const belt = BABYLON.MeshBuilder.CreateBox("belt", { width: 2.3 * SCALE, height: 0.1 * SCALE, depth: 0.85 * SCALE }, scene);
+        belt.parent = root;
+        belt.position.y = 0.35 * SCALE;
+        const beltMat = new BABYLON.StandardMaterial("beltMat", scene);
+        beltMat.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.18);
+        belt.material = beltMat;
+        shadowGen.addShadowCaster(belt);
+
+        // Rollers
+        for (let dx of [-1, 0, 1]) {
+          const roller = BABYLON.MeshBuilder.CreateCylinder("roller", { diameter: 0.25 * SCALE, height: 0.9 * SCALE }, scene);
+          roller.parent = root;
+          roller.position = new BABYLON.Vector3(dx * 0.8 * SCALE, 0.15 * SCALE, 0);
+          roller.rotation.x = Math.PI / 2;
+          roller.material = colorMat;
+          shadowGen.addShadowCaster(roller);
+        }
+
+        // Side rails
+        for (let dz of [-0.5, 0.5]) {
+          const rail = BABYLON.MeshBuilder.CreateBox("rail", { width: 2.5 * SCALE, height: 0.15 * SCALE, depth: 0.08 * SCALE }, scene);
+          rail.parent = root;
+          rail.position = new BABYLON.Vector3(0, 0.45 * SCALE, dz * SCALE);
+          rail.material = colorMat;
+          shadowGen.addShadowCaster(rail);
+        }
+
+      } else if (item.type === "camera") {
+        // Body
+        const body = BABYLON.MeshBuilder.CreateBox("body", { width: 1.2 * SCALE, height: 0.8 * SCALE, depth: 0.8 * SCALE }, scene);
+        body.parent = root;
+        body.position.y = 0.4 * SCALE;
+        body.material = colorMat;
+        shadowGen.addShadowCaster(body);
+
+        // Lens
+        const lens = BABYLON.MeshBuilder.CreateCylinder("lens", { diameter: 0.5 * SCALE, height: 0.4 * SCALE }, scene);
+        lens.parent = root;
+        lens.position = new BABYLON.Vector3(0, 0.4 * SCALE, 0.6 * SCALE);
+        lens.rotation.x = Math.PI / 2;
+        const lensMat = new BABYLON.StandardMaterial("lensMat", scene);
+        lensMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.12);
+        lensMat.specularColor = new BABYLON.Color3(1, 1, 1);
+        lensMat.specularPower = 128;
+        lens.material = lensMat;
+        shadowGen.addShadowCaster(lens);
+
+        // LED indicator
+        const led = BABYLON.MeshBuilder.CreateSphere("led", { diameter: 0.12 * SCALE }, scene);
+        led.parent = root;
+        led.position = new BABYLON.Vector3(0.5 * SCALE, 0.7 * SCALE, 0.41 * SCALE);
+        const ledMat = new BABYLON.StandardMaterial("ledMat", scene);
+        ledMat.emissiveColor = new BABYLON.Color3(0, 1, 0.3);
+        led.material = ledMat;
+
+        // Mount bracket
+        const mount = BABYLON.MeshBuilder.CreateBox("mount", { width: 0.6 * SCALE, height: 0.15 * SCALE, depth: 1 * SCALE }, scene);
+        mount.parent = root;
+        mount.position.y = 0.075 * SCALE;
+        mount.material = metalMat;
+        shadowGen.addShadowCaster(mount);
+
+      } else if (item.type === "scanner") {
+        // Handle
+        const handle = BABYLON.MeshBuilder.CreateBox("handle", { width: 0.35 * SCALE, height: 0.9 * SCALE, depth: 0.5 * SCALE }, scene);
+        handle.parent = root;
+        handle.position.y = 0.45 * SCALE;
+        handle.material = colorMat;
+        shadowGen.addShadowCaster(handle);
+
+        // Head
+        const head = BABYLON.MeshBuilder.CreateBox("head", { width: 0.5 * SCALE, height: 0.5 * SCALE, depth: 0.7 * SCALE }, scene);
+        head.parent = root;
+        head.position = new BABYLON.Vector3(0, 1 * SCALE, 0.2 * SCALE);
+        head.material = colorMat;
+        shadowGen.addShadowCaster(head);
+
+        // Scanner window
+        const window = BABYLON.MeshBuilder.CreateBox("window", { width: 0.4 * SCALE, height: 0.35 * SCALE, depth: 0.05 * SCALE }, scene);
+        window.parent = root;
+        window.position = new BABYLON.Vector3(0, 1 * SCALE, 0.58 * SCALE);
+        const winMat = new BABYLON.StandardMaterial("winMat", scene);
+        winMat.emissiveColor = new BABYLON.Color3(1, 0, 0);
+        winMat.alpha = 0.7;
+        window.material = winMat;
+
+        // Trigger button
+        const trigger = BABYLON.MeshBuilder.CreateBox("trigger", { width: 0.15 * SCALE, height: 0.2 * SCALE, depth: 0.12 * SCALE }, scene);
+        trigger.parent = root;
+        trigger.position = new BABYLON.Vector3(0, 0.5 * SCALE, -0.32 * SCALE);
+        trigger.material = metalMat;
+        shadowGen.addShadowCaster(trigger);
+
+      } else if (item.type === "hmi") {
+        // Screen body
+        const body = BABYLON.MeshBuilder.CreateBox("body", { width: 1.8 * SCALE, height: 1.3 * SCALE, depth: 0.2 * SCALE }, scene);
+        body.parent = root;
+        body.position.y = 0.7 * SCALE;
+        body.material = colorMat;
+        shadowGen.addShadowCaster(body);
+
+        // Screen
+        const screen = BABYLON.MeshBuilder.CreateBox("screen", { width: 1.5 * SCALE, height: 1 * SCALE, depth: 0.02 * SCALE }, scene);
+        screen.parent = root;
+        screen.position = new BABYLON.Vector3(0, 0.75 * SCALE, 0.12 * SCALE);
+        const screenMat = new BABYLON.StandardMaterial("screenMat", scene);
+        screenMat.emissiveColor = new BABYLON.Color3(0.1, 0.4, 0.8);
+        screenMat.diffuseColor = new BABYLON.Color3(0.05, 0.2, 0.4);
+        screen.material = screenMat;
+
+        // Stand
+        const stand = BABYLON.MeshBuilder.CreateBox("stand", { width: 0.3 * SCALE, height: 0.1 * SCALE, depth: 0.8 * SCALE }, scene);
+        stand.parent = root;
+        stand.position.y = 0.05 * SCALE;
+        stand.material = metalMat;
+        shadowGen.addShadowCaster(stand);
+
+        // Function buttons
+        for (let i = 0; i < 3; i++) {
+          const btn = BABYLON.MeshBuilder.CreateBox("btn" + i, { width: 0.2 * SCALE, height: 0.12 * SCALE, depth: 0.05 * SCALE }, scene);
+          btn.parent = root;
+          btn.position = new BABYLON.Vector3(-0.5 * SCALE + i * 0.5 * SCALE, 0.15 * SCALE, 0.12 * SCALE);
+          const btnMat = new BABYLON.StandardMaterial("btnMat" + i, scene);
+          btnMat.diffuseColor = new BABYLON.Color3(0.3, 0.6, 0.3);
+          btn.material = btnMat;
+        }
+
+      } else if (item.type === "forklift") {
+        // Body
+        const body = BABYLON.MeshBuilder.CreateBox("body", { width: 1 * SCALE, height: 0.7 * SCALE, depth: 1.4 * SCALE }, scene);
+        body.parent = root;
+        body.position.y = 0.55 * SCALE;
+        body.material = colorMat;
+        shadowGen.addShadowCaster(body);
+
+        // Cab
+        const cab = BABYLON.MeshBuilder.CreateBox("cab", { width: 0.9 * SCALE, height: 0.6 * SCALE, depth: 0.6 * SCALE }, scene);
+        cab.parent = root;
+        cab.position = new BABYLON.Vector3(0, 1.1 * SCALE, -0.3 * SCALE);
+        cab.material = colorMat;
+        shadowGen.addShadowCaster(cab);
+
+        // Roof
+        const roof = BABYLON.MeshBuilder.CreateBox("roof", { width: 1 * SCALE, height: 0.08 * SCALE, depth: 0.8 * SCALE }, scene);
+        roof.parent = root;
+        roof.position = new BABYLON.Vector3(0, 1.45 * SCALE, -0.2 * SCALE);
+        roof.material = metalMat;
+        shadowGen.addShadowCaster(roof);
+
+        // Mast
+        const mast = BABYLON.MeshBuilder.CreateBox("mast", { width: 0.15 * SCALE, height: 1.2 * SCALE, depth: 0.15 * SCALE }, scene);
+        mast.parent = root;
+        mast.position = new BABYLON.Vector3(0, 0.8 * SCALE, 0.75 * SCALE);
+        mast.material = metalMat;
+        shadowGen.addShadowCaster(mast);
+
+        // Forks
+        for (let dx of [-0.25, 0.25]) {
+          const fork = BABYLON.MeshBuilder.CreateBox("fork", { width: 0.12 * SCALE, height: 0.06 * SCALE, depth: 0.8 * SCALE }, scene);
+          fork.parent = root;
+          fork.position = new BABYLON.Vector3(dx * SCALE, 0.25 * SCALE, 1.1 * SCALE);
+          fork.material = metalMat;
+          shadowGen.addShadowCaster(fork);
+        }
+
+        // Wheels
+        const wheelMat = new BABYLON.StandardMaterial("wheelMat", scene);
+        wheelMat.diffuseColor = new BABYLON.Color3(0.12, 0.12, 0.15);
+        
+        for (let dx of [-0.5, 0.5]) {
+          for (let dz of [-0.5, 0.4]) {
+            const wheel = BABYLON.MeshBuilder.CreateCylinder("wheel", { diameter: 0.35 * SCALE, height: 0.15 * SCALE }, scene);
+            wheel.parent = root;
+            wheel.position = new BABYLON.Vector3(dx * SCALE, 0.175 * SCALE, dz * SCALE);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.material = wheelMat;
+            shadowGen.addShadowCaster(wheel);
+          }
+        }
+      }
+    }
+
+    // ===== INTERACTION =====
+    function setupInteraction(scene) {
+      scene.onPointerDown = (evt, pickResult) => {
+        if (!pickResult || !pickResult.hit || !pickResult.pickedMesh) return;
+
+        let node = pickResult.pickedMesh;
+        while (node && (!node.metadata || node.metadata.type !== "itemRoot")) {
+          node = node.parent;
+        }
+        if (!node || !node.metadata) return;
+
+        toggleItem(node);
+      };
+
+      checkBtn.addEventListener("click", checkSolution);
+    }
+
+    function moveNodeTo(node, targetPos) {
+      const from = node.position.clone();
+      const to = targetPos.clone();
+
+      // Bounce animation
+      const midY = Math.max(from.y, to.y) + 1.5 * SCALE;
+
+      const anim = new BABYLON.Animation(
+        "moveAnim",
+        "position",
+        60,
+        BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+        BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
+      );
+
+      const keys = [
+        { frame: 0, value: from },
+        { frame: 15, value: new BABYLON.Vector3(from.x, midY, from.z) },
+        { frame: 30, value: new BABYLON.Vector3(to.x, midY, to.z) },
+        { frame: 45, value: to }
+      ];
+
+      anim.setKeys(keys);
+      
+      const ease = new BABYLON.CubicEase();
+      ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+      anim.setEasingFunction(ease);
+
+      node.animations = [anim];
+      scene.beginAnimation(node, 0, 45, false);
+    }
+
+    function toggleItem(root) {
+      const idx = root.metadata.index;
+      const item = ITEMS[idx];
+
+      if (!root.metadata.selected) {
+        // Try to add
+        root.metadata.selected = true;
+        currentWeight += item.weight;
+        currentValue += item.value;
+
+        let freeSlot = null;
+        for (let i = 0; i < crateSlots.length; i++) {
+          let taken = itemRoots.some(r => r.metadata.selected && r.metadata.slotIndex === i);
+          if (!taken) { freeSlot = i; break; }
+        }
+
+        if (freeSlot === null) {
+          // No space
+          root.metadata.selected = false;
+          currentWeight -= item.weight;
+          currentValue -= item.value;
+          msgEl.textContent = "⚠️ הארגז מלא! הוצא פריט קודם";
+        } else {
+          root.metadata.slotIndex = freeSlot;
+          moveNodeTo(root, crateSlots[freeSlot]);
+          playMoveSfx();
+        }
+
+      } else {
+        // Remove
+        root.metadata.selected = false;
+        currentWeight -= item.weight;
+        currentValue -= item.value;
+        root.metadata.slotIndex = null;
+        moveNodeTo(root, root.metadata.basePosition.clone());
+        playMoveSfx();
+      }
+
+      updateHUD();
+    }
+
+    function updateHUD() {
+      weightEl.textContent = currentWeight;
+      valueEl.textContent = currentValue;
+
+      if (currentWeight > CAPACITY) {
+        weightEl.classList.add("warning");
+        weightEl.classList.remove("success");
+        msgEl.textContent = "⚠️ חרגת מהקיבולת! הוצא פריט";
+      } else {
+        weightEl.classList.remove("warning");
+        if (currentValue === bestPossibleValue && currentWeight <= CAPACITY) {
+          valueEl.classList.add("success");
+        } else {
+          valueEl.classList.remove("success");
+        }
+        msgEl.textContent = "לחץ על פריטים להוסיף/להוציא 🎯";
+      }
+    }
+
+    function checkSolution() {
+      if (currentWeight > CAPACITY) {
+        msgEl.textContent = "⚠️ המשקל גבוה מדי! הפחת קודם";
+        return;
+      }
+
+      const diff = bestPossibleValue - currentValue;
+
+      if (diff === 0) {
+        msgEl.textContent = "🎉 מושלם! מצאת את הפתרון האופטימלי!";
+        valueEl.classList.add("success");
+      } else if (diff <= 2) {
+        msgEl.textContent = `👏 כמעט! חסרים ${diff} נקודות לאופטימום`;
+      } else {
+        msgEl.textContent = `💡 אפשר לשפר! המקסימום הוא ${bestPossibleValue}`;
+      }
+    }
+
+    // ===== INIT =====
+    bestPossibleValue = computeOptimalValue();
+    scene = createScene();
+
+    engine.runRenderLoop(() => scene.render());
+
+    window.addEventListener("resize", () => engine.resize());
+    window.addEventListener("orientationchange", () => {
+      setTimeout(() => engine.resize(), 300);
+    });
+  </script>
+</body>
+</html>

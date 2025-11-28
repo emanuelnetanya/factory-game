@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ייצוא מסך בקרה (HMI) להדפסה תלת מימד</title>
+
+  <!-- BabylonJS core -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <!-- Serializer – יצוא ל-STL -->
+  <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #020617;
+      color: #f9fafb;
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      outline: none;
+    }
+
+    #exportPanel {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.92);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      direction: rtl;
+    }
+
+    #exportBtn {
+      border: none;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #exportBtn:active {
+      transform: scale(0.96);
+    }
+
+    #status {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <div id="exportPanel">
+    <button id="exportBtn">⬇️ הורד STL של מסך הבקרה</button>
+    <span id="status">משקל: 3, ערך: 7 — לחץ כדי לייצא STL להדפסה</span>
+  </div>
+
+  <script>
+    // ===== פרמטרים של הפריט (כמו במשחק) =====
+    const ITEM_WEIGHT = 3; // משקל
+    const ITEM_VALUE  = 7; // ערך
+
+    // ===== בסיס BABYLON =====
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      antialias: true
+    });
+
+    let scene;
+    let hmiRoot = null; // ה"טופ" של מסך הבקרה
+
+    function createScene() {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.03, 0.05, 0.1, 1);
+
+      // תאורה
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.9;
+      hemi.groundColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+
+      const dir = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-0.6, -1, -0.3), scene);
+      dir.position = new BABYLON.Vector3(8, 10, 6);
+      dir.intensity = 0.8;
+
+      // מצלמה
+      const arcCam = new BABYLON.ArcRotateCamera(
+        "camera",
+        BABYLON.Tools.ToRadians(145),
+        BABYLON.Tools.ToRadians(60),
+        7,
+        new BABYLON.Vector3(0, 1.2, 0),
+        scene
+      );
+      arcCam.attachControl(canvas, true);
+
+      // רצפה
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 25, height: 25 }, scene);
+      const gMat = new BABYLON.StandardMaterial("gMat", scene);
+      gMat.diffuseColor = new BABYLON.Color3(0.09, 0.11, 0.16);
+      gMat.specularColor = new BABYLON.Color3(0, 0, 0);
+      ground.material = gMat;
+      ground.receiveShadows = true;
+
+      // צללים
+      const shadowGen = new BABYLON.ShadowGenerator(1024, dir);
+      shadowGen.useBlurExponentialShadowMap = true;
+      shadowGen.blurKernel = 16;
+
+      // יצירת מסך הבקרה
+      hmiRoot = createHMIScreen(scene, shadowGen);
+
+      return scene;
+    }
+
+    // ===== יצירת מסך בקרה (HMI) עם משטח שטוח לשואב =====
+    function createHMIScreen(scene, shadowGen) {
+      const SCALE = 1.1;
+
+      const root = new BABYLON.TransformNode("hmiRoot", scene);
+      root.position = new BABYLON.Vector3(0, 0, 0);
+
+      // גוף המסך
+      const bodyMat = new BABYLON.StandardMaterial("hmiBodyMat", scene);
+      bodyMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25);
+      bodyMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+      bodyMat.specularPower = 64;
+
+      // מסך (זכוכית/תצוגה)
+      const screenMat = new BABYLON.StandardMaterial("hmiScreenMat", scene);
+      screenMat.emissiveColor = new BABYLON.Color3(0.1, 0.4, 0.8);
+      screenMat.diffuseColor = new BABYLON.Color3(0.05, 0.2, 0.4);
+      screenMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+      screenMat.specularPower = 96;
+
+      // חומר כפתורים
+      const buttonMat = new BABYLON.StandardMaterial("hmiBtnMat", scene);
+      buttonMat.diffuseColor = new BABYLON.Color3(0.3, 0.7, 0.3);
+      buttonMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+      buttonMat.specularPower = 48;
+
+      // חומר סטנד
+      const standMat = new BABYLON.StandardMaterial("hmiStandMat", scene);
+      standMat.diffuseColor = new BABYLON.Color3(0.35, 0.38, 0.42);
+      standMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.9);
+
+      // ==== גוף המסך (קופסה עבה) ====
+      const body = BABYLON.MeshBuilder.CreateBox("hmiBody", {
+        width: 1.8 * SCALE,
+        height: 1.3 * SCALE,
+        depth: 0.25 * SCALE
+      }, scene);
+      body.parent = root;
+      body.position.y = 1.1 * SCALE;
+      body.material = bodyMat;
+      shadowGen.addShadowCaster(body);
+
+      // ==== משטח שטוח עליון לשואב ====
+      const topPlate = BABYLON.MeshBuilder.CreateBox("hmiTopPlate", {
+        width: 1.8 * SCALE,
+        height: 0.05 * SCALE,
+        depth: 0.9 * SCALE
+      }, scene);
+      topPlate.parent = root;
+      topPlate.position = new BABYLON.Vector3(0, body.position.y + (1.3 * SCALE) / 2 + 0.025 * SCALE, -0.05 * SCALE);
+      topPlate.material = bodyMat;
+      shadowGen.addShadowCaster(topPlate);
+
+      // ==== מסך קדמי ====
+      const screen = BABYLON.MeshBuilder.CreateBox("hmiScreen", {
+        width: 1.5 * SCALE,
+        height: 1.0 * SCALE,
+        depth: 0.03 * SCALE
+      }, scene);
+      screen.parent = root;
+      screen.position = new BABYLON.Vector3(0, body.position.y, 0.14 * SCALE);
+      screen.material = screenMat;
+      shadowGen.addShadowCaster(screen);
+
+      // ==== כפתורי פונקציה מתחת למסך ====
+      const btnCount = 3;
+      const btnSpacing = 0.5 * SCALE;
+      const btnWidth = 0.22 * SCALE;
+      const btnHeight = 0.12 * SCALE;
+
+      for (let i = 0; i < btnCount; i++) {
+        const btn = BABYLON.MeshBuilder.CreateBox("hmiBtn" + i, {
+          width: btnWidth,
+          height: btnHeight,
+          depth: 0.05 * SCALE
+        }, scene);
+        const startX = -btnSpacing;
+        btn.parent = root;
+        btn.position = new BABYLON.Vector3(
+          startX + i * (btnSpacing),
+          body.position.y - 0.7 * SCALE,
+          0.14 * SCALE
+        );
+        btn.material = buttonMat;
+        shadowGen.addShadowCaster(btn);
+      }
+
+      // ==== סטנד/רגל בסיס ====
+      const standBase = BABYLON.MeshBuilder.CreateBox("hmiStandBase", {
+        width: 0.4 * SCALE,
+        height: 0.1 * SCALE,
+        depth: 0.9 * SCALE
+      }, scene);
+      standBase.parent = root;
+      standBase.position = new BABYLON.Vector3(0, 0.1 * SCALE, 0);
+      standBase.material = standMat;
+      shadowGen.addShadowCaster(standBase);
+
+      const standPillar = BABYLON.MeshBuilder.CreateBox("hmiStandPillar", {
+        width: 0.25 * SCALE,
+        height: 0.9 * SCALE,
+        depth: 0.35 * SCALE
+      }, scene);
+      standPillar.parent = root;
+      standPillar.position = new BABYLON.Vector3(0, 0.55 * SCALE, 0);
+      standPillar.material = standMat;
+      shadowGen.addShadowCaster(standPillar);
+
+      // מעט רוטציה למראה נוח
+      root.rotation.y = BABYLON.Tools.ToRadians(-25);
+
+      return root;
+    }
+
+    // ===== יצוא ל-STL =====
+    function exportHMIToSTL() {
+      const status = document.getElementById("status");
+
+      if (!hmiRoot) {
+        status.textContent = "שגיאה: המסך עדיין לא נטען.";
+        return;
+      }
+
+      const meshes = hmiRoot.getChildMeshes(false);
+
+      if (!meshes || meshes.length === 0) {
+        status.textContent = "לא נמצאו Meshes עבור המסך.";
+        return;
+      }
+
+      // שם קובץ כולל משקל וערך (כמו תווית)
+      const fileName = `hmi_screen_w${ITEM_WEIGHT}_v${ITEM_VALUE}`;
+
+      try {
+        BABYLON.STLExport.CreateSTL(meshes, true, fileName);
+        status.textContent =
+          "✅ נוצר קובץ " +
+          fileName +
+          ".stl — משקל: " +
+          ITEM_WEIGHT +
+          ", ערך: " +
+          ITEM_VALUE +
+          ". בדוק בתיקיית ההורדות.";
+      } catch (e) {
+        console.error(e);
+        status.textContent = "❌ אירעה שגיאה ביצוא STL (בדוק קונסול).";
+      }
+    }
+
+    // ===== הפעלת סצנה =====
+    scene = createScene();
+    engine.runRenderLoop(() => {
+      if (scene) scene.render();
+    });
+
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+
+    // כפתור יצוא
+    document.getElementById("exportBtn").addEventListener("click", exportHMIToSTL);
+
+    // קיצור מקשים – Ctrl+E ליצוא
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
+        exportHMIToSTL();
+      }
+    });
+  </script>
+</body>
+</html>
