@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>משחק מסלול לוגיסטי - TSP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1565C0">
+
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Heebo", Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      position: fixed;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%);
+    }
+
+    #renderCanvas {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: block;
+      outline: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      touch-action: none;
+    }
+
+    /* Splash Screen */
+    #splashScreen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #1565C0 0%, #0D47A1 50%, #1a237e 100%);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 20px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
+
+    #splashScreen.hidden {
+      display: none;
+    }
+
+    .splash-content {
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      padding-bottom: 40px;
+    }
+
+    .splash-icon {
+      font-size: 60px;
+      margin-bottom: 10px;
+      margin-top: 20px;
+    }
+
+    .splash-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    .splash-subtitle {
+      font-size: 16px;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 24px;
+    }
+
+    .splash-section {
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      text-align: right;
+    }
+
+    .splash-section h3 {
+      font-size: 16px;
+      color: #1565C0;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .splash-section p {
+      font-size: 14px;
+      color: #37474f;
+      line-height: 1.7;
+    }
+
+    .splash-section ol {
+      padding-right: 20px;
+      margin: 0;
+    }
+
+    .splash-section li {
+      font-size: 14px;
+      color: #37474f;
+      line-height: 1.7;
+      margin-bottom: 6px;
+    }
+
+    .highlight-text {
+      color: #1565C0;
+      font-weight: 700;
+    }
+
+    #startBtn {
+      background: linear-gradient(135deg, #ffffff, #e3f2fd);
+      color: #1565C0;
+      border: none;
+      padding: 16px 48px;
+      border-radius: 16px;
+      font-size: 20px;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 10px;
+    }
+
+    #startBtn:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    /* Rotate device message */
+    #rotateDevice {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #1565C0, #0D47A1);
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #rotateDevice .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: rotateAnim 2s ease-in-out infinite;
+    }
+
+    @keyframes rotateAnim {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(90deg); }
+    }
+
+    #rotateDevice h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    #rotateDevice p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    @media (max-width: 900px) and (orientation: portrait) {
+      #rotateDevice { display: flex; }
+      #renderCanvas, #hud, #topButtons, #sidePanel, #infoPanel, #leftButtons, #message { opacity: 0; pointer-events: none; }
+    }
+
+    /* HUD - AT TOP, GLASSMORPHISM DESIGN */
+    #hud {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top, 12px));
+      left: 50%;
+      transform: translateX(-50%);
+      width: auto;
+      max-width: calc(100% - 200px);
+      background: linear-gradient(135deg, rgba(21, 101, 192, 0.85), rgba(13, 71, 161, 0.9));
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(21, 101, 192, 0.4), 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      font-size: 14px;
+      font-weight: 600;
+      direction: rtl;
+      z-index: 10;
+      color: white;
+    }
+
+    #hudStats {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .stat-label {
+      font-size: 10px;
+      opacity: 0.95;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .stat-value.warning { color: #ffeb3b; }
+    .stat-value.success { color: #69f0ae; }
+
+    #message {
+      position: fixed;
+      bottom: max(12px, env(safe-area-inset-bottom, 12px));
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, rgba(21, 101, 192, 0.9), rgba(13, 71, 161, 0.95));
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      color: white;
+      padding: 10px 24px;
+      border-radius: 25px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.3);
+      z-index: 10;
+      max-width: calc(100% - 40px);
+    }
+
+    /* Top buttons - at top right */
+    #topButtons {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top, 12px));
+      right: max(12px, env(safe-area-inset-right, 12px));
+      display: flex;
+      gap: 10px;
+      z-index: 11;
+    }
+
+    .topBtn {
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+      transition: transform 0.15s;
+    }
+
+    .topBtn:active { transform: scale(0.92); }
+
+    #infoBtn {
+      background: linear-gradient(135deg, #69f0ae, #00c853);
+      color: #1b5e20;
+      font-size: 18px;
+    }
+
+    #helpBtn {
+      background: linear-gradient(135deg, #ffffff, #e3f2fd);
+      color: #1565C0;
+      font-size: 18px;
+    }
+
+    /* Left buttons - exit, undo, reset */
+    #leftButtons {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top, 12px));
+      left: max(12px, env(safe-area-inset-left, 12px));
+      display: flex;
+      gap: 10px;
+      z-index: 12;
+    }
+
+    .leftBtn {
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+      transition: transform 0.15s;
+      font-size: 18px;
+    }
+
+    .leftBtn:active { transform: scale(0.92); }
+
+    #exitBtn {
+      background: linear-gradient(135deg, #ef5350, #c62828);
+      color: #fff;
+    }
+
+    #undoBtn {
+      background: linear-gradient(135deg, #e0e0e0, #bdbdbd);
+      color: #424242;
+    }
+
+    #resetBtn {
+      background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+      color: white;
+    }
+
+    /* Side Panel - Help */
+    #sidePanel {
+      position: fixed;
+      top: 0;
+      right: -320px;
+      width: 300px;
+      max-width: 85vw;
+      height: 100%;
+      height: 100dvh;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(227,242,253,0.98));
+      backdrop-filter: blur(20px);
+      box-shadow: -4px 0 30px rgba(0,0,0,0.3);
+      z-index: 100;
+      transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding: max(60px, env(safe-area-inset-top, 60px)) 16px 100px 16px;
+    }
+
+    #sidePanel.open { right: 0; }
+
+    #sidePanelClose {
+      position: fixed;
+      top: max(16px, env(safe-area-inset-top, 16px));
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: #e0e0e0;
+      color: #424242;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 101;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    #sidePanel.open ~ #sidePanelClose { opacity: 1; pointer-events: auto; }
+
+    .panel-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1565C0;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-section {
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .panel-section h3 {
+      font-size: 15px;
+      color: #1565C0;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-section p, .panel-section li {
+      font-size: 13px;
+      color: #37474f;
+      line-height: 1.5;
+    }
+
+    .panel-section ol {
+      padding-right: 18px;
+      margin: 0;
+    }
+
+    .panel-section li { margin-bottom: 4px; }
+
+    .highlight-box {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+
+    .highlight-box p {
+      font-size: 12px;
+      color: #0d47a1;
+    }
+
+    /* Info Panel - Educational */
+    #infoPanel {
+      position: fixed;
+      top: 0;
+      right: -350px;
+      width: 330px;
+      max-width: 90vw;
+      height: 100%;
+      height: 100dvh;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(232,245,233,0.98));
+      backdrop-filter: blur(20px);
+      box-shadow: -4px 0 30px rgba(0,0,0,0.3);
+      z-index: 100;
+      transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+      padding: max(60px, env(safe-area-inset-top, 60px)) 16px 100px 16px;
+    }
+
+    #infoPanel.open { right: 0; }
+
+    #infoPanelClose {
+      position: fixed;
+      top: max(16px, env(safe-area-inset-top, 16px));
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: #c8e6c9;
+      color: #2e7d32;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 101;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    #infoPanel.open ~ #infoPanelClose { opacity: 1; pointer-events: auto; }
+
+    .edu-icon {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .edu-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #2e7d32;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .edu-section {
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .edu-section h3 {
+      font-size: 14px;
+      color: #2e7d32;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .edu-section p {
+      font-size: 12px;
+      color: #37474f;
+      line-height: 1.6;
+    }
+
+    .uses-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .use-tag {
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+      color: #1b5e20;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .benefit-box {
+      background: linear-gradient(135deg, #fff8e1, #ffecb3);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .benefit-box p {
+      font-size: 13px;
+      color: #e65100;
+      font-weight: 600;
+    }
+
+    /* Overlay for panels */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    #overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Result Popup */
+    .celebration-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      pointer-events: auto;
+    }
+
+    .celebration-overlay.show { display: flex; }
+
+    .celebration-card {
+      background: white;
+      padding: 24px 26px;
+      border-radius: 22px;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+      animation: celebrationPop 0.4s ease;
+      max-width: 380px;
+      width: 90%;
+    }
+
+    @keyframes celebrationPop {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .celebration-icon { font-size: 46px; margin-bottom: 8px; }
+
+    .celebration-title {
+      font-size: 22px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #1565C0, #0D47A1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+
+    .celebration-subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    .results-box {
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #e3f2fd, #fff);
+      border-radius: 16px;
+      border: 1px solid rgba(21, 101, 192, 0.25);
+      font-size: 13px;
+      text-align: right;
+      direction: rtl;
+    }
+
+    .results-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .results-label { color: #666; font-weight: 700; }
+    .results-value { font-weight: 900; color: #333; direction: ltr; text-align: left; }
+
+    .result-message {
+      margin-top: 8px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .result-message.success { color: #16a34a; }
+    .result-message.fail { color: #dc2626; }
+
+    .modal-buttons {
+      margin-top: 14px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .modal-btn {
+      padding: 9px 20px;
+      border-radius: 999px;
+      border: none;
+      font-family: 'Heebo', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .modal-btn.main { background: linear-gradient(135deg, #1565C0, #0D47A1); color: white; }
+    .modal-btn.ghost { background: transparent; color: #555; border: 1px dashed #90caf9; }
+
+    /* Mobile optimizations */
+    @media (max-height: 500px) {
+      #hud {
+        padding: 5px 8px;
+        gap: 6px;
+      }
+      .stat { padding: 3px 8px; min-width: 40px; }
+      .stat-value { font-size: 14px; }
+      .stat-label { font-size: 7px; }
+      #message { font-size: 10px; padding: 8px 14px; }
+      .topBtn, .leftBtn { width: 36px; height: 36px; font-size: 15px; }
+    }
+
+    @media (max-width: 600px) {
+      #hud { 
+        padding: 6px 10px;
+        gap: 6px;
+        max-width: calc(100% - 160px);
+      }
+      #hudStats { gap: 5px; }
+      .stat { padding: 4px 8px; min-width: 42px; }
+      .stat-value { font-size: 15px; }
+      .stat-label { font-size: 8px; }
+      #message { font-size: 11px; }
+      .topBtn, .leftBtn { width: 40px; height: 40px; font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <!-- Splash Screen -->
+  <div id="splashScreen">
+    <div class="splash-content">
+      <div class="splash-icon">🚚</div>
+      <h1 class="splash-title">מסלול לוגיסטי</h1>
+      <p class="splash-subtitle">משחק הובלות - בעיית הסוכן הנוסע</p>
+      
+      <div class="splash-section">
+        <h3>📦 על המשחק</h3>
+        <p>
+          יש לכם <span class="highlight-text">משאית</span> שצריכה לבקר בכל <span class="highlight-text">7 הסניפים</span> ולחזור למרלוג המרכזי.
+          <br><br>
+          לכל מסלול יש <span class="highlight-text">מרחק שונה</span> - המטרה היא למצוא את המסלול הקצר ביותר!
+        </p>
+      </div>
+
+      <div class="splash-section">
+        <h3>🎯 המטרה</h3>
+        <p>
+          מצאו את <span class="highlight-text">המסלול הקצר ביותר</span> שעובר בכל הסניפים וחוזר למרלוג. נסו להגיע למרחק היעד!
+        </p>
+      </div>
+
+      <div class="splash-section">
+        <h3>👆 איך משחקים?</h3>
+        <ol>
+          <li>התחילו מהמרלוג המרכזי (ירוק)</li>
+          <li>לחצו על סניפים לבחירת המסלול</li>
+          <li>אי אפשר לחזור למרלוג לפני סיום</li>
+          <li>חזרו למרלוג בסוף</li>
+        </ol>
+      </div>
+
+      <button id="startBtn">🎮 התחל משחק</button>
+    </div>
+  </div>
+
+  <!-- Rotate device message -->
+  <div id="rotateDevice">
+    <div class="icon">📱</div>
+    <h2>סובב את המכשיר</h2>
+    <p>המשחק עובד במצב שוכב (Landscape)</p>
+  </div>
+
+  <!-- HUD - AT TOP -->
+  <div id="hud">
+    <div id="hudStats">
+      <div class="stat">
+        <span class="stat-label">נוכחי</span>
+        <span class="stat-value" id="currentDistance">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">יעד</span>
+        <span class="stat-value" id="optimalDistanceDisplay">?</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message at bottom -->
+  <div id="message">👆 לחצו על הסניף הראשון כדי להתחיל</div>
+
+  <!-- Top buttons - right side -->
+  <div id="topButtons">
+    <button id="infoBtn" class="topBtn">🎓</button>
+    <button id="helpBtn" class="topBtn">?</button>
+  </div>
+
+  <!-- Left buttons - exit, undo, reset -->
+  <div id="leftButtons">
+    <button id="exitBtn" class="leftBtn">✕</button>
+    <button id="undoBtn" class="leftBtn">↩️</button>
+    <button id="resetBtn" class="leftBtn">🔄</button>
+  </div>
+
+  <!-- Overlay -->
+  <div id="overlay"></div>
+
+  <!-- Help Panel (Right) -->
+  <div id="sidePanel">
+    <div class="panel-title">
+      <span>🎮</span>
+      <span>איך משחקים?</span>
+    </div>
+    
+    <div class="panel-section">
+      <h3>📦 על המשחק</h3>
+      <p>יש לכם משאית שצריכה לבקר בכל <strong>7 הסניפים</strong> ולחזור למרלוג המרכזי. המטרה היא למצוא את המסלול הקצר ביותר.</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>🎯 המטרה</h3>
+      <p>בחרו מסלול שעובר בכל הסניפים ומביא אתכם חזרה למרלוג עם <strong>המרחק הקצר ביותר</strong>!</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>👆 פעולות</h3>
+      <ol>
+        <li><strong>לחצו על סניף</strong> - לנסוע אליו</li>
+        <li><strong>↩️ ביטול</strong> - לחזור צעד אחורה</li>
+        <li><strong>🔄 איפוס</strong> - להתחיל מחדש</li>
+      </ol>
+    </div>
+
+    <div class="panel-section">
+      <h3>💡 טיפ חכם</h3>
+      <div class="highlight-box">
+        <p>לא תמיד הדרך הישירה היא הקצרה ביותר! נסו לחשוב על כל המסלול ולא רק על הצעד הבא.</p>
+      </div>
+    </div>
+  </div>
+  <button id="sidePanelClose">✕</button>
+
+  <!-- Educational Panel (Right) -->
+  <div id="infoPanel">
+    <div class="edu-icon">🚚</div>
+    <div class="edu-title">מה לומדים כאן?</div>
+    
+    <div class="edu-section">
+      <h3>📚 בעיית הסוכן הנוסע (TSP)</h3>
+      <p>זו אחת הבעיות הקלאסיות ביותר באופטימיזציה! איך למצוא את המסלול הקצר ביותר שעובר בכל הנקודות בדיוק פעם אחת וחוזר לנקודת ההתחלה.</p>
+    </div>
+
+    <div class="edu-section">
+      <h3>🔧 איפה זה בשימוש?</h3>
+      <div class="uses-list">
+        <span class="use-tag">תכנון משלוחים</span>
+        <span class="use-tag">ניתוב רכבים</span>
+        <span class="use-tag">לוגיסטיקה</span>
+        <span class="use-tag">ייצור</span>
+        <span class="use-tag">שרשרת אספקה</span>
+        <span class="use-tag">מסלולי טיסה</span>
+      </div>
+    </div>
+
+    <div class="edu-section">
+      <h3>🎓 למה תעשייה וניהול?</h3>
+      <p>התואר בהנדסת תעשייה וניהול מלמד בדיוק את זה - <strong>לקבל החלטות חכמות כשהמשאבים מוגבלים</strong>. חיסכון בקילומטרים = חיסכון בזמן, דלק וכסף!</p>
+    </div>
+
+    <div class="edu-section">
+      <div class="benefit-box">
+        <p>🚀 מהנדס תעשייה יודע למצוא את המסלול האופטימלי!</p>
+      </div>
+    </div>
+  </div>
+  <button id="infoPanelClose">✕</button>
+
+  <!-- Result Popup -->
+  <div class="celebration-overlay" id="resultOverlay">
+    <div class="celebration-card">
+      <div class="celebration-icon">📊</div>
+      <div class="celebration-title">סיום המסלול</div>
+      <div class="celebration-subtitle">תוצאות</div>
+
+      <div class="results-box">
+        <div class="results-row">
+          <span class="results-label">שלך:</span>
+          <span class="results-value" id="modalPlayerDistance">0 ק"מ</span>
+        </div>
+        <div class="results-row">
+          <span class="results-label">אופטימלי:</span>
+          <span class="results-value" id="modalOptimalDistance">0 ק"מ</span>
+        </div>
+        <div class="result-message" id="modalResultMessage"></div>
+      </div>
+
+      <div class="modal-buttons">
+        <button class="modal-btn main" id="playAgainBtn">🔁 שחק שוב</button>
+        <button class="modal-btn ghost" id="closeModalBtn">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+    
+    // ---- Data ----
+    const nodes = [
+      { id: 0, name: "מרלוג מרכזי", type: "depot",  x: 0,   z: 0 },
+      { id: 1, name: "צפון-מערב", type: "branch", x: -60, z: -25 },
+      { id: 2, name: "מרכז העיר", type: "branch", x: -20,   z: -60 },
+      { id: 3, name: "צפון-מזרח", type: "branch", x: 55,  z: -30 },
+      { id: 4, name: "דרום-מערב", type: "branch", x: -55, z: 25 },
+      { id: 5, name: "דרום-מזרח", type: "branch", x: 35,  z: 45 },
+      { id: 6, name: "אזור תעשייה", type: "branch", x: 45,  z: 2 },
+      { id: 7, name: "פריפריה",   type: "branch", x: 0,   z: 45 }
+    ];
+
+    const roadDefinitions = [
+      { a: 0, b: 1, d: 4 }, { a: 0, b: 2, d: 5 }, { a: 0, b: 4, d: 5 },
+      { a: 0, b: 5, d: 2 }, { a: 0, b: 7, d: 6 },
+      { a: 1, b: 2, d: 3 }, { a: 1, b: 4, d: 4 },
+      { a: 2, b: 3, d: 4 },
+      { a: 3, b: 6, d: 5 },
+      { a: 1, b: 3, d: 6 },
+      { a: 4, b: 7, d: 4 },
+      { a: 2, b: 5, d: 6 },
+      { a: 5, b: 6, d: 4 }, { a: 5, b: 7, d: 3 }
+    ];
+
+    const INF = 999999;
+    const N = nodes.length;
+    const distances = Array.from({ length: N }, () => Array(N).fill(INF));
+    const adjacency = Array.from({ length: N }, () => Array(N).fill(false));
+
+    let visited = [];
+    let playerPath = [];
+    let totalDistance = 0;
+    let gameOver = false;
+    let isAnimating = false;
+    let optimalDistance = null;
+
+    let engine, scene, advancedTexture;
+    let nodeTransforms = [];
+    let truckParent;
+    let playerSegments = [];
+
+    // DOM Elements
+    const splashScreen = document.getElementById("splashScreen");
+    const startBtn = document.getElementById("startBtn");
+    const helpBtn = document.getElementById("helpBtn");
+    const infoBtn = document.getElementById("infoBtn");
+    const exitBtn = document.getElementById("exitBtn");
+    const undoBtn = document.getElementById("undoBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const sidePanel = document.getElementById("sidePanel");
+    const sidePanelClose = document.getElementById("sidePanelClose");
+    const infoPanel = document.getElementById("infoPanel");
+    const infoPanelClose = document.getElementById("infoPanelClose");
+    const overlay = document.getElementById("overlay");
+    const currentDistanceEl = document.getElementById("currentDistance");
+    const optimalDistanceEl = document.getElementById("optimalDistanceDisplay");
+    const messageEl = document.getElementById("message");
+    const resultOverlay = document.getElementById("resultOverlay");
+    const modalPlayerDistanceEl = document.getElementById("modalPlayerDistance");
+    const modalOptimalDistanceEl = document.getElementById("modalOptimalDistance");
+    const modalResultMessageEl = document.getElementById("modalResultMessage");
+    const playAgainBtn = document.getElementById("playAgainBtn");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+
+    function buildGraph() {
+      for (let i = 0; i < N; i++) {
+        distances[i][i] = 0;
+        adjacency[i][i] = false;
+      }
+      for (const r of roadDefinitions) {
+        distances[r.a][r.b] = r.d;
+        distances[r.b][r.a] = r.d;
+        adjacency[r.a][r.b] = true;
+        adjacency[r.b][r.a] = true;
+      }
+    }
+
+    function allBranchesVisited() {
+      for (let i = 1; i < N; i++) if (!visited[i]) return false;
+      return true;
+    }
+
+    function computeOptimalRoute() {
+      const branches = [1,2,3,4,5,6,7];
+      let bestDist = INF;
+      function backtrack(path) {
+        if (path.length === branches.length) {
+          let prev = 0;
+          let d = 0;
+          for (const idx of path) {
+            if (!adjacency[prev][idx]) return;
+            d += distances[prev][idx];
+            prev = idx;
+          }
+          if (!adjacency[prev][0]) return;
+          d += distances[prev][0];
+          if (d < bestDist) bestDist = d;
+          return;
+        }
+        for (const b of branches) {
+          if (!path.includes(b)) {
+            path.push(b);
+            backtrack(path);
+            path.pop();
+          }
+        }
+      }
+      backtrack([]);
+      return bestDist;
+    }
+
+    function createScene(canvas) {
+      engine = new BABYLON.Engine(canvas, true, { antialias: true });
+      scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0.89, 0.93, 0.98, 1);
+
+      const isMobile = (window.innerWidth < 768) || (window.innerHeight < 700);
+
+      // Adjusted camera for better mobile view
+      const mobileRadius  = 180;
+      const desktopRadius = 140;
+      const mobileBeta  = Math.PI / 3.5;
+      const desktopBeta = Math.PI / 3;
+      const fixedAlpha = -Math.PI / 2;
+      
+      const targetMobile  = new BABYLON.Vector3(0, 0, 0);
+      const targetDesktop = new BABYLON.Vector3(0, 0, 0);
+
+      const radius = isMobile ? mobileRadius : desktopRadius;
+      const beta   = isMobile ? mobileBeta   : desktopBeta;
+      const target = isMobile ? targetMobile : targetDesktop;
+
+      const camera = new BABYLON.ArcRotateCamera(
+        "camera",
+        fixedAlpha,
+        beta,
+        radius,
+        target,
+        scene
+      );
+
+      camera.alpha  = fixedAlpha;
+      camera.beta   = beta;
+      camera.radius = radius;
+      camera.target = target;
+
+      camera.lowerAlphaLimit  = fixedAlpha;
+      camera.upperAlphaLimit  = fixedAlpha;
+      camera.lowerBetaLimit   = beta;
+      camera.upperBetaLimit   = beta;
+      camera.lowerRadiusLimit = radius;
+      camera.upperRadiusLimit = radius;
+
+      // Lighting
+      const hemi = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+      hemi.intensity = 0.8;
+
+      const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-0.5, -1, 0.4), scene);
+      sun.position = new BABYLON.Vector3(50, 70, -50);
+      sun.intensity = 0.95;
+
+      const shadowGen = new BABYLON.ShadowGenerator(1024, sun);
+      shadowGen.useBlurExponentialShadowMap = true;
+
+      // Ground
+      const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 180, height: 180 }, scene);
+      const groundMat = new BABYLON.StandardMaterial("groundMat", scene);
+      groundMat.diffuseColor = new BABYLON.Color3(0.9, 0.93, 0.96);
+      ground.material = groundMat;
+      ground.receiveShadows = true;
+
+      // Babylon GUI
+      advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+      createRoads(scene);
+      createEnvironment(scene, shadowGen);
+
+      // Create nodes
+      nodes.forEach((node) => {
+        if (node.type === "depot") {
+          nodeTransforms[node.id] = createDepot(node, shadowGen);
+        } else {
+          nodeTransforms[node.id] = createBranch(node, shadowGen);
+        }
+      });
+
+      drawAllRoadEdges(scene);
+
+      // Truck
+      truckParent = createTruckMesh(scene, shadowGen);
+      setTruckToNode(0);
+
+      // Click handling
+      scene.onPointerDown = (evt, pickResult) => {
+        if (!pickResult.hit || isAnimating || gameOver) return;
+
+        let mesh = pickResult.pickedMesh;
+        while (mesh && mesh.nodeId === undefined) {
+          mesh = mesh.parent;
+        }
+
+        if (mesh && typeof mesh.nodeId === "number") {
+          handleNodeClick(mesh.nodeId);
+        }
+      };
+
+      return scene;
+    }
+
+    function createRoads(scene) {
+      const roadMat = new BABYLON.StandardMaterial("roadMat", scene);
+      roadMat.diffuseColor = new BABYLON.Color3(0.38,0.4,0.45);
+      const lineMat = new BABYLON.StandardMaterial("lineMat", scene);
+      lineMat.diffuseColor = new BABYLON.Color3(1,0.95,0.4);
+
+      for (let i = -40; i <= 40; i += 20) {
+        const roadH = BABYLON.MeshBuilder.CreateBox("roadH"+i, { width: 160, height: 0.05, depth: 12 }, scene);
+        roadH.position.set(0,0.025,i);
+        roadH.material = roadMat;
+        const roadV = BABYLON.MeshBuilder.CreateBox("roadV"+i, { width: 12, height: 0.05, depth: 160 }, scene);
+        roadV.position.set(i,0.025,0);
+        roadV.material = roadMat;
+      }
+    }
+
+    function createEnvironment(scene, shadowGen) {
+      const treePositions = [[-50,-50],[50,-50],[-50,50],[50,50]];
+      treePositions.forEach(([x,z]) => {
+        const trunk = BABYLON.MeshBuilder.CreateCylinder("trunk",{ height: 3.5, diameter: 0.9 },scene);
+        trunk.position.set(x,1.75,z);
+        const trunkMat = new BABYLON.StandardMaterial("trunkMat",scene);
+        trunkMat.diffuseColor = new BABYLON.Color3(0.5,0.35,0.18);
+        trunk.material = trunkMat;
+        
+        const leaves = BABYLON.MeshBuilder.CreateSphere("leaves",{ diameter:6, segments:4 },scene);
+        leaves.position.set(x,5.4,z);
+        const leavesMat = new BABYLON.StandardMaterial("leavesMat",scene);
+        leavesMat.diffuseColor = new BABYLON.Color3(0.35,0.72,0.38);
+        leaves.material = leavesMat;
+        shadowGen.addShadowCaster(leaves);
+      });
+    }
+
+    function createDepot(node, shadowGen) {
+      const parent = new BABYLON.TransformNode("depot_"+node.id, scene);
+      parent.position = new BABYLON.Vector3(node.x,0,node.z);
+      parent.nodeId = node.id;
+      parent.scaling = new BABYLON.Vector3(2, 2, 2);
+
+      const base = BABYLON.MeshBuilder.CreateBox("depotBase", { width:6, height:4, depth:6 }, scene);
+      base.position.y = 3;
+      base.parent = parent;
+      const baseMat = new BABYLON.StandardMaterial("depotBaseMat",scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.3,0.8,0.5);
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+
+      addNodeLabel(parent, node.name, "#22c55e", node);
+      return parent;
+    }
+
+    function createBranch(node, shadowGen) {
+      const parent = new BABYLON.TransformNode("branch_"+node.id, scene);
+      parent.position = new BABYLON.Vector3(node.x,0,node.z);
+      parent.nodeId = node.id;
+      parent.scaling = new BABYLON.Vector3(2.2, 2.2, 2.2);
+
+      const base = BABYLON.MeshBuilder.CreateBox("branchBase",{width:4,height:3,depth:4},scene);
+      base.position.y = 2.25;
+      base.parent = parent;
+      const baseMat = new BABYLON.StandardMaterial("branchBaseMat",scene);
+      baseMat.diffuseColor = new BABYLON.Color3(0.4,0.55,0.9);
+      base.material = baseMat;
+      shadowGen.addShadowCaster(base);
+
+      const roof = BABYLON.MeshBuilder.CreateCylinder("branchRoof",{diameterTop:0,diameterBottom:5,height:1.4,tessellation:4},scene);
+      roof.position.y = 5;
+      roof.rotation.y = Math.PI/4;
+      roof.parent = parent;
+      const roofMat = new BABYLON.StandardMaterial("branchRoofMat",scene);
+      roofMat.diffuseColor = new BABYLON.Color3(0.6,0.3,0.3);
+      roof.material = roofMat;
+      shadowGen.addShadowCaster(roof);
+
+      addNodeLabel(parent, node.name, "#3b82f6", node);
+      return parent;
+    }
+
+    function addNodeLabel(parent, text, color, nodeData) {
+        const rect = new BABYLON.GUI.Rectangle();
+        rect.adaptWidthToChildren = true;
+        rect.adaptHeightToChildren = true;
+        rect.cornerRadius = 7;
+        rect.thickness = 0;
+        rect.background = "rgba(255, 255, 255, 0.95)";    // רקע לבן
+        rect.paddingLeft = "1px";
+        rect.paddingTop = "1px";
+        advancedTexture.addControl(rect);
+        rect.linkWithMesh(parent);
+
+        // התאמת מיקום התווית לפי הצומת
+        let offsetX = 0;
+        let offsetY = -20;
+        
+        switch(nodeData.id) {
+            case 0: // מרלוג מרכזי - למעלה
+            offsetX = 0;
+            offsetY = -25;
+            break;
+            case 1: // צפון-מערב - שמאלה
+            offsetX = -45;
+            offsetY = -10;
+            break;
+            case 2: // מרכז העיר - למעלה
+            offsetX = -55;
+            offsetY = 15;
+            break;
+            case 3: // צפון-מזרח - ימינה
+            offsetX = 50;
+            offsetY = -10;
+            break;
+            case 4: // דרום-מערב - שמאלה
+            offsetX = -45;
+            offsetY = -15;
+            break;
+            case 5: // דרום-מזרח - ימינה
+            offsetX = 40;
+            offsetY = -10;
+            break;
+            case 6: // אזור תעשייה - ימינה
+            offsetX = 50;
+            offsetY = -10;
+            break;
+            case 7: // פריפריה - למטה
+            offsetX = 0;
+            offsetY = -35;
+            break;
+        }
+
+        rect.linkOffsetX = offsetX;
+        rect.linkOffsetY = offsetY;
+
+        const tb = new BABYLON.GUI.TextBlock();
+        tb.text = text;
+        tb.color = "#1565C0";
+        tb.fontWeight = "bold";
+        tb.fontSize = 12; 
+        tb.fontFamily = "Heebo";
+        tb.resizeToFit = true;
+        tb.paddingLeft = "1px";
+        tb.paddingRight = "1px";
+        tb.paddingTop = "1px";
+        tb.paddingBottom = "1px";
+        rect.addControl(tb);
+        }
+
+    function drawAllRoadEdges(scene) {
+      const tubeMat = new BABYLON.StandardMaterial("edgeMat",scene);
+      tubeMat.diffuseColor = new BABYLON.Color3(0.7,0.72,0.78);
+      tubeMat.alpha = 0.65;
+
+      roadDefinitions.forEach((r, idx) => {
+        const a = nodes[r.a];
+        const b = nodes[r.b];
+        const path = [new BABYLON.Vector3(a.x, 0.4, a.z), new BABYLON.Vector3(b.x, 0.4, b.z)];
+
+        const tube = BABYLON.MeshBuilder.CreateTube("edge_"+idx,{
+          path, radius: 0.25, tessellation: 8, cap: BABYLON.Mesh.CAP_ALL
+        },scene);
+        tube.material = tubeMat;
+
+        let position;
+
+        if ((r.a === 1 && r.b === 3) || (r.a === 3 && r.b === 1)) {
+            position = BABYLON.Vector3.Lerp(path[0], path[1], 0.8);
+            position.z -= 3; 
+        } 
+        else if ((r.a === 0 && r.b === 2) || (r.a === 2 && r.b === 0)) {
+            position = BABYLON.Vector3.Lerp(path[0], path[1], 0.6);
+        }
+        else {
+            position = BABYLON.Vector3.Center(path[0], path[1]);
+        }
+
+        const anchor = new BABYLON.TransformNode("edgeAnchor_"+idx,scene);
+        anchor.position = new BABYLON.Vector3(position.x, 2.5, position.z);
+
+        const rect = new BABYLON.GUI.Rectangle();
+        rect.adaptWidthToChildren = true;
+        rect.adaptHeightToChildren = true;
+        rect.cornerRadius = 8;
+        rect.background = "rgba(220, 225, 230, 0.85)";
+        rect.thickness = 0;
+        advancedTexture.addControl(rect);
+        rect.linkWithMesh(anchor);
+
+        const tb = new BABYLON.GUI.TextBlock();
+        tb.text = r.d + " ק\"מ";
+        tb.color = "black";
+        tb.fontSize = 11;
+        tb.fontFamily = "Heebo";
+        tb.resizeToFit = true;
+        tb.paddingLeft = "2px";
+        tb.paddingRight = "2px";
+        tb.paddingTop = "2px";
+        tb.paddingBottom = "2px";
+        rect.addControl(tb);
+      });
+    }
+
+    function createTruckMesh(scene, shadowGen) {
+      const parent = new BABYLON.TransformNode("truckParent", scene);
+      parent.position.y = 0.1;
+
+      const cargoMat = new BABYLON.StandardMaterial("cargoMat", scene);
+      cargoMat.diffuseColor = new BABYLON.Color3(0.98, 0.6, 0.2); 
+      
+      const cabinMat = new BABYLON.StandardMaterial("cabinMat", scene);
+      cabinMat.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.4);
+      
+      const wheelMat = new BABYLON.StandardMaterial("wheelMat", scene);
+      wheelMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+      const cargo = BABYLON.MeshBuilder.CreateBox("truckCargo", { width: 3.2, height: 2, depth: 4 }, scene);
+      cargo.position.y = 1.5;
+      cargo.position.z = -1;
+      cargo.parent = parent;
+      cargo.material = cargoMat;
+      shadowGen.addShadowCaster(cargo);
+
+      const cabin = BABYLON.MeshBuilder.CreateBox("truckCabin", { width: 3.2, height: 2.5, depth: 2 }, scene);
+      cabin.position.y = 1.75;
+      cabin.position.z = 2;
+      cabin.parent = parent;
+      cabin.material = cabinMat;
+      shadowGen.addShadowCaster(cabin);
+
+      const createWheel = (name, x, z) => {
+          const wheel = BABYLON.MeshBuilder.CreateCylinder(name, { diameter: 1.5, height: 0.8, tessellation: 12 }, scene);
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(x, 0.75, z);
+          wheel.parent = parent;
+          wheel.material = wheelMat;
+          shadowGen.addShadowCaster(wheel);
+      };
+
+      createWheel("w_fr",  1.8,  2);
+      createWheel("w_fl", -1.8,  2);
+      createWheel("w_br",  1.8, -1.5);
+      createWheel("w_bl", -1.8, -1.5);
+
+      parent.scaling = new BABYLON.Vector3(2.1, 2.1, 2.1);
+
+      return parent;
+    }
+
+    function setTruckToNode(nodeId) {
+      const t = nodeTransforms[nodeId];
+      if (!t) return;
+      
+      if (nodeId === 0) {
+          truckParent.position.x = t.position.x;
+          truckParent.position.z = t.position.z - 8;
+          truckParent.rotation.y = Math.PI;
+      } else {
+          truckParent.position.x = t.position.x;
+          truckParent.position.z = t.position.z;
+      }
+    }
+
+    function animateTruck(fromId, toId, cb) {
+      const fromPos = nodeTransforms[fromId].position;
+      const toPos = nodeTransforms[toId].position;
+      
+      isAnimating = true;
+
+      const direction = toPos.subtract(fromPos).normalize();
+      
+      const dx = toPos.x - fromPos.x;
+      const dz = toPos.z - fromPos.z;
+      if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+        truckParent.rotation.y = Math.atan2(dx, dz);
+      }
+
+      const stopOffset = 5.5;
+      const targetX = toPos.x - (direction.x * stopOffset);
+      const targetZ = toPos.z - (direction.z * stopOffset);
+
+      gsap.to(truckParent.position, {
+        x: targetX, 
+        z: targetZ, 
+        duration: 1.2, 
+        ease: "power2.inOut",
+        onComplete: () => {
+          isAnimating = false;
+          if (cb) cb();
+        }
+      });
+
+      if (playerPath.length > 0) {
+        const path = [
+            new BABYLON.Vector3(fromPos.x, 0.8, fromPos.z), 
+            new BABYLON.Vector3(toPos.x, 0.8, toPos.z)
+        ];
+        const tube = BABYLON.MeshBuilder.CreateTube("playerSeg",{path, radius: 0.4, tessellation: 8},scene);
+        const mat = new BABYLON.StandardMaterial("playerSegMat",scene);
+        mat.diffuseColor = new BABYLON.Color3(0.37,0.67,1);
+        tube.material = mat;
+        playerSegments.push(tube);
+      }
+    }
+
+    function resetGame() {
+      visited = Array(N).fill(false);
+      visited[0] = true;
+      playerPath = [0];
+      totalDistance = 0;
+      gameOver = false;
+      isAnimating = false;
+      currentDistanceEl.textContent = "0";
+      messageEl.textContent = "👆 לחצו על הסניף הראשון כדי להתחיל";
+      playerSegments.forEach(m => m.dispose());
+      playerSegments = [];
+      setTruckToNode(0);
+    }
+
+    function undoLastMove() {
+      if (isAnimating || playerPath.length <= 1) return;
+      const last = playerPath.pop();
+      const prev = playerPath[playerPath.length - 1];
+      if (last !== 0) visited[last] = false;
+      totalDistance -= distances[prev][last];
+      if (totalDistance < 0) totalDistance = 0;
+      const seg = playerSegments.pop();
+      if (seg) seg.dispose();
+      setTruckToNode(prev);
+      currentDistanceEl.textContent = totalDistance.toString();
+      gameOver = false;
+      messageEl.textContent = "↩️ הצעד האחרון הוסר";
+    }
+
+    function handleNodeClick(nodeId) {
+      if (isAnimating || gameOver) return;
+      const last = playerPath[playerPath.length - 1];
+      if (!adjacency[last][nodeId]) return;
+      if (nodeId === 0) {
+        if (!allBranchesVisited()) {
+          messageEl.textContent = "⚠️ אי אפשר לחזור למרלוג לפני ביקור בכולם";
+          return;
+        }
+        totalDistance += distances[last][0];
+        playerPath.push(0);
+        currentDistanceEl.textContent = totalDistance.toString();
+        messageEl.textContent = "🚚 המשאית חוזרת למרלוג...";
+        animateTruck(last, 0, () => {
+          gameOver = true;
+          showResultPopup();
+        });
+        return;
+      }
+      if (visited[nodeId]) {
+        messageEl.textContent = "⚠️ כבר ביקרת בסניף הזה";
+        return;
+      }
+      visited[nodeId] = true;
+      playerPath.push(nodeId);
+      totalDistance += distances[last][nodeId];
+      currentDistanceEl.textContent = totalDistance.toString();
+      messageEl.textContent = "🚚 בדרך ל" + nodes[nodeId].name;
+      animateTruck(last, nodeId);
+    }
+
+    function showResultPopup() {
+      modalPlayerDistanceEl.textContent = totalDistance + " ק\"מ";
+      modalOptimalDistanceEl.textContent = optimalDistance + " ק\"מ";
+      const diff = totalDistance - optimalDistance;
+      if (diff === 0) {
+        modalResultMessageEl.className = "result-message success";
+        modalResultMessageEl.textContent = "🏆 כל הכבוד! בחרת במסלול האופטימלי!";
+      } else {
+        modalResultMessageEl.className = "result-message fail";
+        modalResultMessageEl.textContent = "🤏 המסלול שלך ארוך ב־" + diff + " ק\"מ מהאופטימלי";
+      }
+      resultOverlay.classList.add("show");
+    }
+
+    function hideResultPopup() {
+      resultOverlay.classList.remove("show");
+    }
+
+    // Panel controls
+    function openPanel(panel) {
+      closeAllPanels();
+      panel.classList.add("open");
+      overlay.classList.add("visible");
+    }
+
+    function closeAllPanels() {
+      sidePanel.classList.remove("open");
+      infoPanel.classList.remove("open");
+      overlay.classList.remove("visible");
+    }
+
+    // Fullscreen for mobile
+    function goFullscreen() {
+      const elem = document.documentElement;
+      if (!document.fullscreenElement) {
+        if (elem.requestFullscreen) elem.requestFullscreen().catch(() => {});
+        else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+      }
+      setTimeout(() => window.scrollTo(0, 1), 100);
+    }
+
+    // INIT
+    window.addEventListener("DOMContentLoaded", () => {
+      buildGraph();
+      optimalDistance = computeOptimalRoute();
+      optimalDistanceEl.textContent = optimalDistance.toString();
+
+      const canvas = document.getElementById("renderCanvas");
+      createScene(canvas);
+      resetGame();
+
+      // Event listeners
+      startBtn.addEventListener("click", () => {
+        splashScreen.classList.add("hidden");
+        goFullscreen();
+      });
+
+      helpBtn.addEventListener("click", () => openPanel(sidePanel));
+      infoBtn.addEventListener("click", () => openPanel(infoPanel));
+      sidePanelClose.addEventListener("click", closeAllPanels);
+      infoPanelClose.addEventListener("click", closeAllPanels);
+      overlay.addEventListener("click", closeAllPanels);
+
+      exitBtn.addEventListener("click", () => {
+        if (confirm("לצאת מהמשחק?")) window.history.back();
+      });
+
+      undoBtn.addEventListener("click", undoLastMove);
+      resetBtn.addEventListener("click", () => { hideResultPopup(); resetGame(); });
+      playAgainBtn.addEventListener("click", () => { hideResultPopup(); resetGame(); });
+      closeModalBtn.addEventListener("click", hideResultPopup);
+
+      engine.runRenderLoop(() => scene.render());
+      
+      window.addEventListener("resize", () => engine.resize());
+      window.addEventListener("orientationchange", () => {
+        setTimeout(() => engine.resize(), 300);
+      });
+    });
+
+    })();
+  </script>
+</body>
+</html>

@@ -433,10 +433,66 @@
         font-size: 12px;
     }
     }
+    /* --- Rotate Device Message --- */
+    #rotateDevice {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #667eea, #764ba2); /* התאמתי את הצבעים לרקע של המשחק הזה */
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #rotateDevice .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: rotateAnim 2s ease-in-out infinite;
+    }
+
+    @keyframes rotateAnim {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(90deg); }
+    }
+
+    #rotateDevice h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      font-family: 'Heebo', sans-serif;
+    }
+
+    #rotateDevice p {
+      font-size: 16px;
+      opacity: 0.9;
+      font-family: 'Heebo', sans-serif;
+    }
+
+    /* הלוגיקה שמפעילה את המסך ומסתירה את המשחק */
+    @media (max-width: 900px) and (orientation: portrait) {
+      #rotateDevice { display: flex; }
+      
+      /* הסתרת כל האלמנטים של המשחק */
+      #renderCanvas, 
+      
+      .ui-container, 
+      .celebration-overlay { 
+        opacity: 0; 
+        pointer-events: none; 
+      }
+    }
 
   </style>
 </head>
 <body>
+  <div id="rotateDevice">
+    <div class="icon">📱</div>
+    <h2>סובב את המכשיר</h2>
+    <p>המשחק עובד במצב שוכב (Landscape)</p>
+  </div>
   <canvas id="renderCanvas"></canvas>
 
   <div class="ui-container">
@@ -545,7 +601,7 @@
 
     const roadDefinitions = [
       { a: 0, b: 1, d: 4 }, { a: 0, b: 2, d: 5 }, { a: 0, b: 4, d: 5 },
-      { a: 0, b: 5, d: 6 }, { a: 0, b: 7, d: 6 },
+      { a: 0, b: 5, d: 2 }, { a: 0, b: 7, d: 6 },
       { a: 1, b: 2, d: 3 }, { a: 1, b: 4, d: 4 },
       { a: 2, b: 3, d: 4 },
       //{ a: 2, b: 7, d: 3 },
