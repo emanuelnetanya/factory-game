@@ -204,151 +204,102 @@
       }
     }
 
-    /* ========== TOP BAR - UNIFIED HEADER ========== */
+    /* ========== NEW TOP BAR DESIGN ========== */
     #topBar {
       position: fixed;
-      top: max(8px, env(safe-area-inset-top, 8px));
-      left: 50%;
-      transform: translateX(-50%);
-      width: calc(100% - 24px);
-      max-width: 700px;
-      background: linear-gradient(135deg, rgba(21, 101, 192, 0.95), rgba(13, 71, 161, 0.95));
-      backdrop-filter: blur(15px);
-      border-radius: 16px;
-      box-shadow: 0 4px 25px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
-      padding: 10px 16px;
+      top: max(12px, env(safe-area-inset-top, 12px));
+      left: 0;
+      right: 0;
+      padding: 0 16px;
       display: none;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
       z-index: 100;
-      color: white;
     }
 
     #topBar.visible { display: flex; }
 
-    .bar-section {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .bar-stats {
-      display: flex;
-      gap: 16px;
-    }
-
-    .stat {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-    }
-
-    .stat-label {
-      font-size: 10px;
-      opacity: 0.8;
-      font-weight: 500;
-    }
-
-    .stat-value {
-      font-size: 18px;
-      font-weight: 800;
-    }
-
-    .bar-message {
-      flex: 1;
-      text-align: center;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 0 8px;
-      min-width: 0;
-    }
-
-    .bar-buttons {
+    .side-buttons-left, .side-buttons-right {
       display: flex;
       gap: 8px;
-      align-items: center;
     }
 
-    .bar-btn {
+    .side-btn {
+      width: 46px;
+      height: 46px;
       border: none;
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-      font-weight: 800;
+      border-radius: 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      font-size: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.25);
       transition: transform 0.15s;
-      font-size: 16px;
     }
 
-    .bar-btn:active { transform: scale(0.92); }
+    .side-btn:active { transform: scale(0.9); }
 
-    .btn-check {
-      background: linear-gradient(135deg, #69f0ae, #00c853);
+    .btn-red { background: linear-gradient(135deg, #ff6b6b, #ee5a5a); }
+    .btn-yellow { background: linear-gradient(135deg, #ffd54f, #ffca28); }
+    .btn-green { background: linear-gradient(135deg, #69db7c, #51cf66); }
+    .btn-blue { background: linear-gradient(135deg, #74c0fc, #4dabf7); }
+
+    .center-panel {
+      background: linear-gradient(135deg, #1565C0, #0D47A1);
+      border-radius: 18px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 6px 25px rgba(0,0,0,0.35);
+    }
+
+    .stat-box {
+      background: rgba(255,255,255,0.18);
+      border-radius: 12px;
+      padding: 8px 18px;
+      text-align: center;
+      min-width: 75px;
+    }
+
+    .stat-box .label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.85);
+      font-weight: 600;
+    }
+
+    .stat-box .value {
+      font-size: 26px;
+      font-weight: 800;
+      color: white;
+    }
+
+    .check-btn {
+      background: linear-gradient(135deg, #69f0ae, #00e676);
+      border: none;
+      border-radius: 12px;
+      padding: 14px 28px;
       color: #1b5e20;
-      padding: 0 16px;
-      width: auto;
-      font-size: 13px;
       font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       opacity: 0.5;
       pointer-events: none;
+      transition: all 0.2s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
 
-    .btn-check.active {
+    .check-btn.active {
       opacity: 1;
       pointer-events: auto;
     }
 
-    .btn-hint {
-      background: linear-gradient(135deg, #ffd54f, #ffb300);
-      color: #263238;
-    }
-
-    .btn-help {
-      background: linear-gradient(135deg, #ffffff, #e3f2fd);
-      color: #1565C0;
-    }
-
-    .btn-info {
-      background: linear-gradient(135deg, #81d4fa, #4fc3f7);
-      color: #01579b;
-    }
-
-    .btn-reset {
-      background: linear-gradient(135deg, #ef5350, #c62828);
-      color: white;
-    }
-
-    /* ========== STATUS BAR ========== */
-    #statusBar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 10px 20px;
-      padding-bottom: max(10px, env(safe-area-inset-bottom));
-      background: rgba(255,255,255,0.95);
-      backdrop-filter: blur(15px);
-      box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-      z-index: 99;
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #statusBar.visible { display: flex; }
-
-    #statusMessage {
-      font-size: 13px;
-      font-weight: 600;
-      color: #333;
-      text-align: center;
-    }
+    .check-btn:active { transform: scale(0.95); }
 
     /* ========== OVERLAY ========== */
     #overlay {
@@ -553,9 +504,7 @@
       padding: 20px;
     }
 
-    #courierModal.visible {
-      display: flex;
-    }
+    #courierModal.visible { display: flex; }
 
     .modal-content {
       background: white;
@@ -622,9 +571,7 @@
       justify-content: center;
     }
 
-    .modal-body {
-      padding: 18px;
-    }
+    .modal-body { padding: 18px; }
 
     .modal-section-title {
       font-size: 14px;
@@ -716,13 +663,8 @@
       cursor: pointer;
     }
 
-    .matrix-row.assigned .matrix-select-btn {
-      background: #4CAF50;
-    }
-
-    .matrix-row.assigned-other .matrix-select-btn {
-      display: none;
-    }
+    .matrix-row.assigned .matrix-select-btn { background: #4CAF50; }
+    .matrix-row.assigned-other .matrix-select-btn { display: none; }
 
     .assigned-badge {
       display: none;
@@ -734,9 +676,7 @@
       font-weight: 700;
     }
 
-    .matrix-row.assigned-other .assigned-badge {
-      display: block;
-    }
+    .matrix-row.assigned-other .assigned-badge { display: block; }
 
     /* ========== CELEBRATION ========== */
     #celebration {
@@ -752,9 +692,7 @@
       overflow-y: auto;
     }
 
-    #celebration.visible {
-      display: flex;
-    }
+    #celebration.visible { display: flex; }
 
     .celeb-card {
       background: white;
@@ -772,10 +710,7 @@
       100% { transform: scale(1) translateY(0); opacity: 1; }
     }
 
-    .celeb-icon {
-      font-size: 60px;
-      margin-bottom: 12px;
-    }
+    .celeb-icon { font-size: 60px; margin-bottom: 12px; }
 
     .celeb-title {
       font-size: 28px;
@@ -817,11 +752,7 @@
       margin-bottom: 6px;
     }
 
-    .result-value {
-      font-size: 26px;
-      font-weight: 900;
-    }
-
+    .result-value { font-size: 26px; font-weight: 900; }
     .result-box.user .result-value { color: #FF9800; }
     .result-box.optimal .result-value { color: #4CAF50; }
 
@@ -838,9 +769,6 @@
       font-size: 14px;
       color: #1565C0;
       margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
     .time-comparison p {
@@ -857,11 +785,7 @@
       text-align: right;
     }
 
-    .optimal-list h4 {
-      font-size: 13px;
-      color: #333;
-      margin-bottom: 10px;
-    }
+    .optimal-list h4 { font-size: 13px; color: #333; margin-bottom: 10px; }
 
     .optimal-item {
       font-size: 12px;
@@ -906,17 +830,13 @@
     }
 
     /* ========== RESPONSIVE ========== */
-    @media (max-width: 600px) {
-      #topBar {
-        padding: 8px 12px;
-        gap: 8px;
-      }
-      .bar-stats { gap: 10px; }
-      .stat-value { font-size: 15px; }
-      .stat-label { font-size: 9px; }
-      .bar-message { font-size: 10px; display: none; }
-      .bar-btn { width: 34px; height: 34px; font-size: 14px; }
-      .btn-check { padding: 0 12px; font-size: 11px; }
+    @media (max-width: 700px) {
+      .center-panel { padding: 8px 12px; gap: 8px; }
+      .stat-box { padding: 6px 12px; min-width: 60px; }
+      .stat-box .value { font-size: 20px; }
+      .stat-box .label { font-size: 10px; }
+      .check-btn { padding: 10px 16px; font-size: 14px; }
+      .side-btn { width: 40px; height: 40px; font-size: 18px; }
     }
   </style>
 </head>
@@ -969,33 +889,29 @@
     <p>המשחק עובד במצב שוכב (Landscape)</p>
   </div>
 
-  <!-- TOP BAR - Unified Header with all controls -->
+  <!-- NEW TOP BAR DESIGN -->
   <div id="topBar">
-    <div class="bar-section bar-stats">
-      <div class="stat">
-        <span class="stat-label">שובצו</span>
-        <span class="stat-value" id="assignedVal">0/4</span>
-      </div>
-      <div class="stat">
-        <span class="stat-label">זמן כולל</span>
-        <span class="stat-value" id="totalTimeVal">0 דק'</span>
-      </div>
+    <div class="side-buttons-left">
+      <button class="side-btn btn-red" id="resetBtn" title="איפוס">🔄</button>
     </div>
 
-    <div class="bar-message" id="barMessage">👆 לחץ על שליח כדי לשבץ אותו</div>
-
-    <div class="bar-section bar-buttons">
-      <button id="infoBtn" class="bar-btn btn-info" title="מידע">🎓</button>
-      <button id="hintBtn" class="bar-btn btn-hint" title="רמז">💡</button>
-      <button id="helpBtn" class="bar-btn btn-help" title="עזרה">❓</button>
-      <button id="resetBtn" class="bar-btn btn-reset" title="איפוס">🔄</button>
-      <button id="checkBtn" class="bar-btn btn-check" title="בדיקה">✓ בדיקה</button>
+    <div class="center-panel">
+      <div class="stat-box">
+        <div class="label">שובצו</div>
+        <div class="value" id="assignedVal">0/4</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">זמן כולל</div>
+        <div class="value" id="totalTimeVal">0</div>
+      </div>
+      <button class="check-btn" id="checkBtn">✓ בדיקה</button>
     </div>
-  </div>
 
-  <!-- Status Bar -->
-  <div id="statusBar">
-    <div id="statusMessage">👆 לחץ על אופנוע כדי לבחור שליח</div>
+    <div class="side-buttons-right">
+      <button class="side-btn btn-yellow" id="hintBtn" title="רמז">💡</button>
+      <button class="side-btn btn-green" id="helpBtn" title="עזרה">❓</button>
+      <button class="side-btn btn-blue" id="infoBtn" title="מידע">🎓</button>
+    </div>
   </div>
 
   <!-- Overlay -->
@@ -1118,21 +1034,23 @@
   </div>
 
   <script>
-    // ========== CONFIGURATION ==========
+    // ========== CONFIGURATION - BETTER POSITIONS ==========
     const MINUTES_PER_UNIT = 0.18;
+    const COURIER_SCALE = 1.5;
+    const COURIER_HEIGHT = 0.3;
 
     const couriers = [
-      { id: 1, x: -38, z: -32, color: '#FF6B6B', name: 'יוסי' },
-      { id: 2, x: 38, z: -28, color: '#4ECDC4', name: 'מיכל' },
-      { id: 3, x: -32, z: 35, color: '#45B7D1', name: 'דני' },
-      { id: 4, x: 35, z: 32, color: '#FFA07A', name: 'שרה' }
+      { id: 1, x: -50, z: -40, color: '#FF6B6B', name: 'יוסי' },
+      { id: 2, x: 50, z: -40, color: '#4ECDC4', name: 'מיכל' },
+      { id: 3, x: -50, z: 40, color: '#45B7D1', name: 'דני' },
+      { id: 4, x: 50, z: 40, color: '#FFA07A', name: 'שרה' }
     ];
 
     const orders = [
-      { id: 1, restX: -15, restZ: -8, custX: 15, custZ: -25, color: '#FFD93D', restaurant: 'פיצה רומא', family: 'משפחת כהן' },
-      { id: 2, restX: 18, restZ: 5, custX: -28, custZ: 18, color: '#6BCF7F', restaurant: 'סושי טוקיו', family: 'משפחת לוי' },
-      { id: 3, restX: -5, restZ: 28, custX: 28, custZ: 12, color: '#B4A7D6', restaurant: 'בורגר האוס', family: 'משפחת אברהם' },
-      { id: 4, restX: 8, restZ: -28, custX: -22, custZ: -5, color: '#FF9FF3', restaurant: 'פלאפל הזהב', family: 'משפחת דוד' }
+      { id: 1, restX: -18, restZ: -5, custX: 18, custZ: -22, color: '#FFD93D', restaurant: 'פיצה רומא', family: 'משפחת כהן' },
+      { id: 2, restX: 20, restZ: 8, custX: -22, custZ: 20, color: '#6BCF7F', restaurant: 'סושי טוקיו', family: 'משפחת לוי' },
+      { id: 3, restX: -8, restZ: 25, custX: 30, custZ: 10, color: '#B4A7D6', restaurant: 'בורגר האוס', family: 'משפחת אברהם' },
+      { id: 4, restX: 5, restZ: -25, custX: -28, custZ: -8, color: '#FF9FF3', restaurant: 'פלאפל הזהב', family: 'משפחת דוד' }
     ];
 
     // ========== GAME STATE ==========
@@ -1141,7 +1059,8 @@
       assignments: {},
       selectedCourier: null,
       startTime: null,
-      isComplete: false
+      isComplete: false,
+      isAnimating: false
     };
 
     let scene, engine, canvas, advancedTexture;
@@ -1232,15 +1151,13 @@
     function updateHUD() {
       const count = Object.keys(gameState.assignments).length;
       document.getElementById('assignedVal').textContent = count + '/4';
-      document.getElementById('totalTimeVal').textContent = formatMinutes(getTotalTime());
+      document.getElementById('totalTimeVal').textContent = getTotalTime();
 
       const checkBtn = document.getElementById('checkBtn');
       if (count === 4) {
         checkBtn.classList.add('active');
-        document.getElementById('barMessage').textContent = '🎉 כל השליחים שובצו! לחץ בדיקה';
       } else {
         checkBtn.classList.remove('active');
-        document.getElementById('barMessage').textContent = '👆 לחץ על שליח כדי לשבץ אותו';
       }
     }
 
@@ -1320,10 +1237,6 @@
       updateHUD();
       updateVisuals();
       closeModal();
-
-      const order = orders.find(o => o.id === orderId);
-      const courier = couriers.find(c => c.id === gameState.selectedCourier);
-      document.getElementById('statusMessage').textContent = `✓ ${courier.name} ישלח ל${order.family}`;
     }
 
     function updateVisuals() {
@@ -1351,7 +1264,7 @@
           ];
 
           const tube = BABYLON.MeshBuilder.CreateTube("line_" + cId, {
-            path: points, radius: 0.28, tessellation: 12, cap: BABYLON.Mesh.CAP_ALL
+            path: points, radius: 0.35, tessellation: 12, cap: BABYLON.Mesh.CAP_ALL
           }, scene);
 
           const mat = new BABYLON.StandardMaterial("tubeMat_" + cId, scene);
@@ -1389,13 +1302,76 @@
       }
 
       if (!hint) hint = '🎉 מצוין! נראה שאתה על הדרך הנכונה!';
+      alert(hint);
+    }
 
-      document.getElementById('statusMessage').textContent = hint;
+    // ========== COURIER ANIMATION ==========
+    async function animateCouriersDelivery() {
+      gameState.isAnimating = true;
+      
+      Object.values(assignmentLines).forEach(l => l.dispose());
+      assignmentLines = {};
+
+      const animations = [];
+      
+      Object.entries(gameState.assignments).forEach(([cId, oId]) => {
+        const mesh = courierMeshes.find(m => m.courierId === parseInt(cId));
+        const order = orders.find(o => o.id === oId);
+        if (mesh && order) {
+          animations.push(animateSingleCourier(mesh, order));
+        }
+      });
+
+      await Promise.all(animations);
+      gameState.isAnimating = false;
+    }
+
+    function animateSingleCourier(mesh, order) {
+      return new Promise(resolve => {
+        const path = [
+          { x: mesh.originalX, z: mesh.originalZ },
+          { x: order.restX, z: order.restZ },
+          { x: order.custX, z: order.custZ }
+        ];
+
+        let segmentIndex = 0;
+
+        function animateSegment() {
+          if (segmentIndex >= path.length - 1) {
+            resolve();
+            return;
+          }
+
+          const start = path[segmentIndex];
+          const end = path[segmentIndex + 1];
+          const dx = end.x - start.x;
+          const dz = end.z - start.z;
+          const distance = Math.sqrt(dx * dx + dz * dz);
+          const duration = distance * 25;
+
+          mesh.rotation.y = Math.atan2(dx, dz);
+
+          gsap.to(mesh.position, {
+            x: end.x,
+            z: end.z,
+            duration: duration / 1000,
+            ease: "power2.inOut",
+            onComplete: () => {
+              segmentIndex++;
+              setTimeout(animateSegment, 150);
+            }
+          });
+        }
+
+        animateSegment();
+      });
     }
 
     // ========== CHECK & CELEBRATE ==========
-    function checkSolution() {
-      if (Object.keys(gameState.assignments).length !== 4) return;
+    async function checkSolution() {
+      if (Object.keys(gameState.assignments).length !== 4 || gameState.isAnimating) return;
+
+      await animateCouriersDelivery();
 
       gameState.isComplete = true;
       const userTime = getTotalTime();
@@ -1458,11 +1434,11 @@
         assignments: {},
         selectedCourier: null,
         startTime: null,
-        isComplete: false
+        isComplete: false,
+        isAnimating: false
       };
 
       updateHUD();
-      document.getElementById('statusMessage').textContent = '👆 לחץ על אופנוע כדי לבחור שליח';
       document.getElementById('celebration').classList.remove('visible');
 
       courierMeshes.forEach(mesh => {
@@ -1480,7 +1456,6 @@
     function startGame() {
       document.getElementById('splashScreen').classList.add('hidden');
       document.getElementById('topBar').classList.add('visible');
-      document.getElementById('statusBar').classList.add('visible');
       gameState.started = true;
       
       const elem = document.documentElement;
@@ -1511,7 +1486,7 @@
 
       // Camera
       const isMobile = window.innerWidth < 900;
-      const camRadius = isMobile ? 105 : 95;
+      const camRadius = isMobile ? 115 : 105;
       const camBeta = isMobile ? Math.PI / 3 : Math.PI / 3.2;
 
       const camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, camBeta, camRadius, BABYLON.Vector3.Zero(), scene);
@@ -1553,7 +1528,7 @@
 
       // Click handler
       scene.onPointerDown = (evt, pick) => {
-        if (!gameState.started || gameState.isComplete) return;
+        if (!gameState.started || gameState.isComplete || gameState.isAnimating) return;
         if (pick.hit) {
           let p = pick.pickedMesh;
           while (p && !p.courierId) p = p.parent;
@@ -1594,7 +1569,12 @@
     }
 
     function createEnvironment(scene, shadowGen) {
-      const treePositions = [[-45,-45],[45,-45],[-45,45],[45,45],[-65,0],[65,0],[0,-65],[0,65],[-65,-35],[65,35],[-35,65],[35,-65]];
+      const treePositions = [
+        [-65, -55], [65, -55], [-65, 55], [65, 55],
+        [-70, 0], [70, 0], [0, -65], [0, 65],
+        [-70, -30], [70, 30], [-30, 70], [30, -70],
+        [-70, 30], [70, -30], [30, 70], [-30, -70]
+      ];
       treePositions.forEach(pos => createTree(scene, pos[0], pos[1], shadowGen));
 
       for (let x = -30; x <= 30; x += 20) {
@@ -1645,8 +1625,11 @@
     }
 
     function createCourier(scene, c, shadowGen) {
+      const S = COURIER_SCALE;
+      const H = COURIER_HEIGHT;
+      
       const parent = new BABYLON.TransformNode('courier_' + c.id, scene);
-      parent.position.set(c.x, 0, c.z);
+      parent.position.set(c.x, H, c.z);
       parent.courierId = c.id;
       parent.originalX = c.x;
       parent.originalZ = c.z;
@@ -1656,15 +1639,15 @@
       bodyMat.diffuseColor = color;
       bodyMat.specularPower = 64;
 
-      const body = BABYLON.MeshBuilder.CreateBox('body', { width: 1.1, height: 0.65, depth: 2.8 }, scene);
-      body.position.y = 0.85;
+      const body = BABYLON.MeshBuilder.CreateBox('body', { width: 1.1 * S, height: 0.65 * S, depth: 2.8 * S }, scene);
+      body.position.y = 0.85 * S;
       body.parent = parent;
       body.material = bodyMat;
       shadowGen.addShadowCaster(body);
 
-      const tank = BABYLON.MeshBuilder.CreateCylinder('tank', { diameter: 0.75, height: 1.3 }, scene);
+      const tank = BABYLON.MeshBuilder.CreateCylinder('tank', { diameter: 0.75 * S, height: 1.3 * S }, scene);
       tank.rotation.x = Math.PI / 2;
-      tank.position.set(0, 1.05, 0.45);
+      tank.position.set(0, 1.05 * S, 0.45 * S);
       tank.parent = parent;
       tank.material = bodyMat;
       shadowGen.addShadowCaster(tank);
@@ -1672,8 +1655,8 @@
       const seatMat = new BABYLON.StandardMaterial('seatMat', scene);
       seatMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
-      const seat = BABYLON.MeshBuilder.CreateBox('seat', { width: 0.75, height: 0.28, depth: 1.1 }, scene);
-      seat.position.set(0, 1.28, -0.35);
+      const seat = BABYLON.MeshBuilder.CreateBox('seat', { width: 0.75 * S, height: 0.28 * S, depth: 1.1 * S }, scene);
+      seat.position.set(0, 1.28 * S, -0.35 * S);
       seat.parent = parent;
       seat.material = seatMat;
       shadowGen.addShadowCaster(seat);
@@ -1685,47 +1668,47 @@
       chromeMat.diffuseColor = new BABYLON.Color3(0.82, 0.82, 0.88);
       chromeMat.specularPower = 128;
 
-      const fWheel = BABYLON.MeshBuilder.CreateTorus('fw', { diameter: 1.1, thickness: 0.32, tessellation: 32 }, scene);
+      const fWheel = BABYLON.MeshBuilder.CreateTorus('fw', { diameter: 1.1 * S, thickness: 0.32 * S, tessellation: 32 }, scene);
       fWheel.rotation.z = Math.PI / 2;
-      fWheel.position.set(0, 0.55, 1.2);
+      fWheel.position.set(0, 0.55 * S, 1.2 * S);
       fWheel.parent = parent;
       fWheel.material = wheelMat;
       shadowGen.addShadowCaster(fWheel);
 
-      const fRim = BABYLON.MeshBuilder.CreateCylinder('frim', { diameter: 0.55, height: 0.28 }, scene);
+      const fRim = BABYLON.MeshBuilder.CreateCylinder('frim', { diameter: 0.55 * S, height: 0.28 * S }, scene);
       fRim.rotation.x = Math.PI / 2;
-      fRim.position.set(0, 0.55, 1.2);
+      fRim.position.set(0, 0.55 * S, 1.2 * S);
       fRim.parent = parent;
       fRim.material = chromeMat;
 
-      const bWheel = BABYLON.MeshBuilder.CreateTorus('bw', { diameter: 1.1, thickness: 0.32, tessellation: 32 }, scene);
+      const bWheel = BABYLON.MeshBuilder.CreateTorus('bw', { diameter: 1.1 * S, thickness: 0.32 * S, tessellation: 32 }, scene);
       bWheel.rotation.z = Math.PI / 2;
-      bWheel.position.set(0, 0.55, -1);
+      bWheel.position.set(0, 0.55 * S, -1 * S);
       bWheel.parent = parent;
       bWheel.material = wheelMat;
       shadowGen.addShadowCaster(bWheel);
 
-      const bRim = BABYLON.MeshBuilder.CreateCylinder('brim', { diameter: 0.55, height: 0.28 }, scene);
+      const bRim = BABYLON.MeshBuilder.CreateCylinder('brim', { diameter: 0.55 * S, height: 0.28 * S }, scene);
       bRim.rotation.x = Math.PI / 2;
-      bRim.position.set(0, 0.55, -1);
+      bRim.position.set(0, 0.55 * S, -1 * S);
       bRim.parent = parent;
       bRim.material = chromeMat;
 
-      const handlebar = BABYLON.MeshBuilder.CreateCylinder('hbar', { diameter: 0.09, height: 1.4 }, scene);
+      const handlebar = BABYLON.MeshBuilder.CreateCylinder('hbar', { diameter: 0.09 * S, height: 1.4 * S }, scene);
       handlebar.rotation.z = Math.PI / 2;
-      handlebar.position.set(0, 1.55, 1.1);
+      handlebar.position.set(0, 1.55 * S, 1.1 * S);
       handlebar.parent = parent;
       handlebar.material = chromeMat;
 
-      const headlight = BABYLON.MeshBuilder.CreateSphere('hl', { diameter: 0.35 }, scene);
-      headlight.position.set(0, 1.15, 1.45);
+      const headlight = BABYLON.MeshBuilder.CreateSphere('hl', { diameter: 0.35 * S }, scene);
+      headlight.position.set(0, 1.15 * S, 1.45 * S);
       headlight.parent = parent;
       const hlMat = new BABYLON.StandardMaterial('hlMat', scene);
       hlMat.emissiveColor = new BABYLON.Color3(1, 1, 0.8);
       headlight.material = hlMat;
 
-      const taillight = BABYLON.MeshBuilder.CreateBox('tl', { width: 0.55, height: 0.18, depth: 0.12 }, scene);
-      taillight.position.set(0, 0.95, -1.45);
+      const taillight = BABYLON.MeshBuilder.CreateBox('tl', { width: 0.55 * S, height: 0.18 * S, depth: 0.12 * S }, scene);
+      taillight.position.set(0, 0.95 * S, -1.45 * S);
       taillight.parent = parent;
       const tlMat = new BABYLON.StandardMaterial('tlMat', scene);
       tlMat.emissiveColor = new BABYLON.Color3(1, 0.1, 0.1);
@@ -1734,14 +1717,14 @@
       const boxMat = new BABYLON.StandardMaterial('boxMat', scene);
       boxMat.diffuseColor = new BABYLON.Color3(0.98, 0.98, 0.98);
 
-      const deliveryBox = BABYLON.MeshBuilder.CreateBox('dbox', { width: 1.5, height: 1.2, depth: 1.5 }, scene);
-      deliveryBox.position.set(0, 1.75, -0.95);
+      const deliveryBox = BABYLON.MeshBuilder.CreateBox('dbox', { width: 1.5 * S, height: 1.2 * S, depth: 1.5 * S }, scene);
+      deliveryBox.position.set(0, 1.75 * S, -0.95 * S);
       deliveryBox.parent = parent;
       deliveryBox.material = boxMat;
       shadowGen.addShadowCaster(deliveryBox);
 
       // Selection ring
-      const ring = BABYLON.MeshBuilder.CreateTorus('ring', { diameter: 4.5, thickness: 0.22, tessellation: 64 }, scene);
+      const ring = BABYLON.MeshBuilder.CreateTorus('ring', { diameter: 5 * S, thickness: 0.25, tessellation: 64 }, scene);
       ring.rotation.x = Math.PI / 2;
       ring.position.y = 0.15;
       ring.parent = parent;
@@ -1754,19 +1737,19 @@
       // Label
       const isMob = window.innerWidth < 900;
       const rect = new BABYLON.GUI.Rectangle();
-      rect.width = isMob ? '70px' : '80px';
-      rect.height = isMob ? '24px' : '28px';
-      rect.cornerRadius = 14;
+      rect.width = isMob ? '80px' : '90px';
+      rect.height = isMob ? '28px' : '32px';
+      rect.cornerRadius = 16;
       rect.thickness = 0;
       rect.background = c.color;
       advancedTexture.addControl(rect);
       rect.linkWithMesh(parent);
-      rect.linkOffsetY = isMob ? -50 : -70;
+      rect.linkOffsetY = isMob ? -70 : -90;
 
       const txt = new BABYLON.GUI.TextBlock();
       txt.text = c.name;
       txt.color = 'white';
-      txt.fontSize = isMob ? 12 : 14;
+      txt.fontSize = isMob ? 14 : 16;
       txt.fontWeight = 'bold';
       txt.fontFamily = 'Heebo';
       rect.addControl(txt);
@@ -1774,9 +1757,9 @@
       // Idle animation
       let t = Math.random() * Math.PI * 2;
       scene.registerBeforeRender(() => {
-        if (!gameState.isComplete) {
+        if (!gameState.isComplete && !gameState.isAnimating) {
           t += 0.04;
-          parent.position.y = Math.sin(t * 2) * 0.06;
+          parent.position.y = H + Math.sin(t * 2) * 0.08;
         }
         fWheel.rotation.x += 0.03;
         bWheel.rotation.x += 0.03;
@@ -1966,6 +1949,7 @@
     engine.runRenderLoop(() => scene.render());
     window.addEventListener('resize', () => engine.resize());
     window.addEventListener('orientationchange', () => setTimeout(() => engine.resize(), 300));
+  </script>
   </script>
 </body>
 </html>
